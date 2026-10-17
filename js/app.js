@@ -254,7 +254,7 @@ function updateKPIs(transfers) {
 
   ELEMENTS.kpiTotal.textContent = transfers.length;
   ELEMENTS.kpiAlerts.textContent = transfers.filter(t => t.alert).length;
-  ELEMENTS.kpiAvg.textContent = "12 min";
+  ELEMENTS.kpiAvg.textContent = "—";
   ELEMENTS.kpiComplete.textContent = `${completion}%`;
 }
 
