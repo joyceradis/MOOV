@@ -1,0 +1,25 @@
+name: MOOV static smoke audit
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check JavaScript syntax
+        run: |
+          set -euo pipefail
+          find js tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 node --check
+      - name: Run static smoke checks
+        run: node --test tests/smoke.test.mjs
