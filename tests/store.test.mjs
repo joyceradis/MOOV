@@ -213,3 +213,31 @@ test('regulação: falha ao gravar a solicitação desfaz o evento já gravado',
   assert.equal(result.ok, false);
   assert.deepEqual(plain(S.loadEvents()), []);
 });
+
+test('regulação: sequência passa de L999 para L1000, recusa números absurdos e não reaproveita código', () => {
+  const { S, DATA, items, plain } = setup();
+  items.set('moov-demo-requests-v1', JSON.stringify([
+    { code: 'SOL-260506-L999', regulationCode: 'REG-1', originId: 'PASP', destinationId: 'HEVV' }
+  ]));
+  const next = plain(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' }));
+  assert.equal(next.request.code, 'SOL-260506-L1000');
+  assert.deepEqual(plain(S.loadLocalRequests(DATA).map(r => r.code)), ['SOL-260506-L999', 'SOL-260506-L1000']);
+  // Número enorme injetado no armazenamento é ignorado (não casa com o padrão) e não gera código repetido.
+  items.set('moov-demo-events-v1', JSON.stringify([{ code: 'SOL-260506-L9007199254740992', key: 'solicitada', at: '2026-05-06T09:00' }]));
+  assert.equal(plain(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' })).request.code, 'SOL-260506-L1001');
+  items.set('moov-demo-events-v1', JSON.stringify([{ code: 'SOL-260506-L999999', key: 'solicitada', at: '2026-05-06T09:00' }]));
+  assert.match(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' }).error, /Limite de solicitações locais/);
+});
+
+test('regulação: rollback restaura exatamente o texto anterior dos eventos', () => {
+  const { S, DATA, items } = setup();
+  const raw = JSON.stringify([{ code: 'X', key: 'constructor', at: 'lixo' }]); // inválido, mas preservado
+  items.set('moov-demo-events-v1', raw);
+  const original = items.set.bind(items);
+  items.set = (key, value) => {
+    if (key === 'moov-demo-requests-v1') throw new Error('quota');
+    return original(key, value);
+  };
+  assert.equal(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' }).ok, false);
+  assert.equal(items.get('moov-demo-events-v1'), raw);
+});
