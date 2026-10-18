@@ -60,8 +60,10 @@ function filtered(rows) {
 
 // ---------- KPIs ----------
 
+// Indicadores de frota usam só a frota municipal; SAMU 192 é contado à parte.
 function updateKPIs(rows) {
-  const summaries = rows.map(r => r.summary);
+  const summaries = rows.map(r => r.summary).filter(s => s.municipal);
+  const samu = rows.length - summaries.length;
   const response = M.mean(summaries.map(s => s.responseMin));
   const total = M.mean(summaries.filter(s => s.finished).map(s => s.totalMin));
   const retention = summaries.map(s => s.retentionMin).filter(Number.isFinite);
@@ -71,7 +73,8 @@ function updateKPIs(rows) {
   const alerts = summaries.filter(s => s.alerts.length).length;
 
   ELEMENTS.kpiTotal.textContent = String(summaries.length);
-  ELEMENTS.kpiTotalDetail.textContent = alerts ? `${alerts} com alerta` : "nenhuma com alerta";
+  ELEMENTS.kpiTotalDetail.textContent = `frota municipal · ${alerts ? `${alerts} com alerta` : "nenhuma com alerta"}` +
+    (samu ? ` · +${samu} SAMU 192 fora dos indicadores` : "");
   ELEMENTS.kpiResponse.textContent = formatMin(response.mean);
   ELEMENTS.kpiResponseDetail.textContent = `solicitação → chegada à origem · n=${response.n}`;
   ELEMENTS.kpiTotalTime.textContent = formatMin(total.mean);
@@ -152,11 +155,12 @@ function renderSelected(row) {
   const items = row.events.map((event, i) => {
     const stage = M.STAGES[M.STAGE_INDEX[event.key]];
     const delta = i ? M.minutesBetween(row.events[i - 1].at, event.at) : null;
+    const deltaText = delta === null ? "" : delta < 0 ? " · inconsistência: horário anterior à etapa precedente" : ` · +${formatMin(delta)}`;
     return `
       <li class="done">
         <time datetime="${escapeHtml(event.at)}">${escapeHtml(formatTime(event.at))}</time>
         <strong>${escapeHtml(stage.label)}</strong>
-        <span>${escapeHtml(stage.profile)} · ${escapeHtml(event.source)}${Number.isFinite(event.km) ? ` · km ${event.km}` : ""}${delta !== null ? ` · +${formatMin(delta)}` : ""}</span>
+        <span>${escapeHtml(stage.profile)} · ${escapeHtml(event.source)}${Number.isFinite(event.km) ? ` · km ${event.km}` : ""}${deltaText}</span>
         ${event.note ? `<em>${escapeHtml(event.note)}</em>` : ""}
       </li>`;
   });
@@ -184,7 +188,8 @@ function selectRequest(code, rows) {
 
 // ---------- gargalos e frota ----------
 
-function renderBottlenecks(rows) {
+function renderBottlenecks(allRows) {
+  const rows = allRows.filter(r => r.summary.municipal);
   const durations = M.stageDurations(rows.map(r => r.events)).filter(d => d.n).sort((a, b) => b.mean - a.mean);
   ELEMENTS.bottleneckList.innerHTML = durations.length
     ? durations.slice(0, 4).map(d => `
@@ -318,7 +323,7 @@ function drawMap(rows, all) {
         keyboard: true,
         zIndexOffset: 1000
       }).addTo(state.map);
-      marker.on("click keypress", select);
+      marker.on("click", select);
       state.layers.push(marker);
     }
   });
@@ -418,6 +423,8 @@ function initApp() {
     if (event.key === null || event.key.startsWith("moov-demo-")) refreshDashboard();
   });
   window.addEventListener("resize", () => state.map?.invalidateSize());
+  // O relógio da demonstração avança após o primeiro registro local; recalcula a cada minuto.
+  setInterval(refreshDashboard, 60000);
 
   refreshDashboard();
 }

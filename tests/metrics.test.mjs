@@ -138,3 +138,40 @@ test('CSV escapa separadores e neutraliza fórmulas', () => {
   const csv = M.toCsv([['a;b', 'diz "oi"', '=HYPERLINK("x")', '-2', 'ok', null]]);
   assert.equal(csv, '"a;b";"diz ""oi""";"\'=HYPERLINK(""x"")";\'-2;ok;');
 });
+
+test('SAMU 192: etapas não registradas no MOOV não viram retenção, alerta, lacuna ou pendência', () => {
+  const s = summary('SAMU-192-260506-003'); // chegou ao destino, nunca "liberado" no MOOV
+  assert.equal(s.municipal, false);
+  assert.equal(s.retentionMin, null);
+  assert.equal(s.retentionOpen, false);
+  assert.deepEqual(plain(s.alerts), []);
+  assert.deepEqual(plain(s.completeness), { done: 0, total: 0, missing: [] });
+  assert.equal(s.next, null);
+  assert.equal(s.totalMin, 31); // tempo registrado continua visível
+});
+
+test('alertas disparam exatamente no parâmetro (>=), não antes', () => {
+  const r = byCode('SOL-260506-P02-002'); // chegada ao destino 08:21
+  const at = now => M.summarize(r, M.eventsFor(r), now, DATA.config).alerts.length;
+  assert.equal(at('2026-05-06T08:50'), 0); // 29 min
+  assert.equal(at('2026-05-06T08:51'), 1); // 30 min
+  const u = byCode('SOL-260506-P03-006'); // solicitada 09:12
+  const un = now => M.summarize(u, M.eventsFor(u), now, DATA.config).alerts.length;
+  assert.equal(un('2026-05-06T09:26'), 0); // 14 min
+  assert.equal(un('2026-05-06T09:27'), 1); // 15 min
+});
+
+test('registros locais repetidos da mesma etapa: vale o primeiro', () => {
+  const r = byCode('SOL-260506-P01-001');
+  const events = M.eventsFor(r, [
+    { code: r.code, key: 'chegada_destino', at: '2026-05-06T08:46', km: 45035 },
+    { code: r.code, key: 'chegada_destino', at: '2026-05-06T08:37', km: 45030 }
+  ]);
+  assert.equal(events.filter(e => e.key === 'chegada_destino').length, 1);
+  assert.equal(events.at(-1).km, 45035);
+});
+
+test('CSV neutraliza também @, tabulação e retorno de carro no início da célula', () => {
+  assert.equal(M.toCsv([['@SUM(1)', '\tx', '+1']]), "'@SUM(1);'\tx;'+1");
+  assert.equal(M.toCsv([['\rcmd']]), "\"'\rcmd\"");
+});

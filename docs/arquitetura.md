@@ -32,7 +32,7 @@ Apoio à governança de frotas de ambulâncias contratadas: rastreabilidade de *
 - **Retenção no destino:** chegada_destino → liberado; em aberto, até o relógio da demonstração.
 - **Lastro documental:** cada etapa alcançada exige as anteriores registradas e km em saída/chegada. Lacunas são exibidas, nunca inferidas.
 - **Alertas:** retenção ≥ `config.retentionAlertMin`; sem veículo ≥ `config.unassignedAlertMin`. Parâmetros de gestão do contrato.
-- **SAMU 192:** exibido e identificado, fora dos indicadores de frota municipal e sem registro pelas páginas da ponta.
+- **SAMU 192:** exibido e identificado, fora dos indicadores de frota municipal e sem registro pelas páginas da ponta. Etapas do SAMU não registradas no MOOV não geram lacuna, pendência, retenção nem alerta.
 
 ### Limites metodológicos
 

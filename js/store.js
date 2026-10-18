@@ -3,7 +3,7 @@
 (function (global) {
   const EVENTS_KEY = "moov-demo-events-v1";
   const CLOCK_KEY = "moov-demo-clock-v1";
-  const MAX_NOTE = 200;
+  const MAX_NOTE = 300;
   const AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
   function readJson(key, fallback) {

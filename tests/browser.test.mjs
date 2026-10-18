@@ -97,18 +97,24 @@ test('painel: carrega sem erros nem violação de CSP; mapa esquemático com Lea
   await context.close();
 });
 
-test('painel: indicadores calculados a partir dos registros (valores conferidos à mão)', async () => {
+test('painel: indicadores da frota municipal calculados dos registros (valores conferidos à mão)', async () => {
   const { context } = await newContext();
   const { page } = await open(context, '/index.html');
-  await assertText(page, '#kpiTotal', '8');
-  await assertText(page, '#kpiTotalDetail', '3 com alerta');
-  await assertText(page, '#kpiResponse', '12 min'); // (6+16+20+12+8+11)/6
-  await assertText(page, '#kpiResponseDetail', 'solicitação → chegada à origem · n=6');
-  await assertText(page, '#kpiTotalTime', '49 min'); // (65+51+31)/3
-  await assertText(page, '#kpiRetention', '2 h 32 min'); // 69+19+23+41
+  // Só as 6 solicitações municipais entram; as 2 do SAMU 192 são contadas à parte.
+  await assertText(page, '#kpiTotal', '6');
+  await assertText(page, '#kpiTotalDetail', 'frota municipal · 2 com alerta · +2 SAMU 192 fora dos indicadores');
+  await assertText(page, '#kpiResponse', '14 min'); // (6+16+20+12)/4 = 13,5 → 14
+  await assertText(page, '#kpiResponseDetail', 'solicitação → chegada à origem · n=4');
+  await assertText(page, '#kpiTotalTime', '58 min'); // (65+51)/2
+  await assertText(page, '#kpiRetention', '1 h 51 min'); // 69+19+23
   await assertText(page, '#kpiKm', '27 km'); // 13+14
-  await assertText(page, '#kpiKmDetail', '2 de 4 trajetos com km completo');
+  await assertText(page, '#kpiKmDetail', '2 de 3 trajetos com km completo');
+  await assertText(page, '#kpiComplete', '97%'); // 36/37
 
+  await page.selectOption('#flowType', 'samu');
+  await assertText(page, '#kpiTotal', '0');
+  await assertText(page, '#kpiRetention', '—');
+  assert.equal(await page.locator('#requestTable tbody tr').count(), 2);
   await page.selectOption('#flowType', 'municipal');
   await assertText(page, '#kpiTotal', '6');
   assert.equal(await page.locator('#requestTable tbody tr').count(), 6);
@@ -121,7 +127,7 @@ test('painel: indicadores calculados a partir dos registros (valores conferidos 
   await assertText(page, '#kpiResponse', '—');
   await assertText(page, '#timelineCode', 'Sem seleção');
   await page.click('#resetFilters');
-  await assertText(page, '#kpiTotal', '8');
+  await assertText(page, '#kpiTotal', '6');
   await context.close();
 });
 
@@ -139,6 +145,8 @@ test('painel: seleção por código mostra cronologia, lacunas e links da ponta 
   await page.click('[data-select="SAMU-192-260506-003"]');
   await assertText(page, '#timelineCode', 'SAMU-192-260506-003');
   assert.equal(await page.locator('#selectedTransfer .front-links').count(), 0);
+  assert.equal(await page.locator('#timeline li.gap, #timeline li.pending').count(), 0);
+  assert.equal(await page.locator('#requestTable tr[data-code="SAMU-192-260506-003"].has-alert').count(), 0);
   assert.match(await page.textContent('#selectedTransfer'), /fora da frota municipal/);
   await context.close();
 });
@@ -181,7 +189,7 @@ test('fluxo completo: motorista e destino registram pelo código; painel em outr
   await dash.click(`[data-select="${code}"]`);
   const last = dash.locator('#timeline li.done').last();
   assert.match(await last.textContent(), /Chegada ao destino.*registro local.*km 45035/s);
-  assert.match(await last.locator('em').textContent(), /Trajeto: Trânsito intenso · Obs: <img src=x onerror="window.__xss=1">/);
+  assert.match(await last.locator('em').textContent(), /Trajeto: Trânsito intenso · Veículo designado confirmado: sim · Obs: <img src=x onerror="window.__xss=1">/);
   assert.equal(await dash.locator('#timeline img').count(), 0);
   assert.equal(await dash.evaluate(() => window.__xss), undefined);
 
@@ -222,6 +230,8 @@ test('páginas da ponta: sem código pedem o código; código inexistente e SAMU
   await page.goto(`${baseUrl}/pages/destino.html?codigo=NAO-EXISTE-1`);
   assert.match(await page.textContent('#lookupMessage'), /NAO-EXISTE-1 não encontrado/);
   await page.goto(`${baseUrl}/pages/destino.html?codigo=%3Cscript%3E`);
+  assert.match(await page.textContent('#lookupMessage'), /Código inválido no link/);
+  await page.goto(`${baseUrl}/pages/destino.html`);
   assert.match(await page.textContent('#lookupMessage'), /Abra esta página pelo link/);
   await page.goto(`${baseUrl}/pages/motorista.html?codigo=SAMU-192-260506-007`);
   assert.match(await page.textContent('#blockedMessage'), /SAMU 192/);
@@ -258,7 +268,7 @@ test('localStorage envenenado (mesma origem) não derruba painel nem páginas da
     localStorage.setItem('moov-demo-clock-v1', '-1e300');
   });
   const { page, errors } = await open(context, '/index.html');
-  await assertText(page, '#kpiTotal', '8');
+  await assertText(page, '#kpiTotal', '6');
   await assertText(page, '#localCount', 'Nenhum registro local.');
   await assertText(page, '#demoClock', '06/05 09:30');
   await page.click('[data-select="SOL-260506-P01-001"]');
@@ -293,7 +303,7 @@ test('sem Leaflet: aviso e painel funcional, com seleção pela tabela', async (
   const { context } = await newContext({ blockLeaflet: true });
   const { page, errors } = await open(context, '/index.html');
   await page.waitForSelector('.map-error-banner');
-  await assertText(page, '#kpiTotal', '8');
+  await assertText(page, '#kpiTotal', '6');
   await page.click('[data-select="SOL-260506-P02-002"]');
   await assertText(page, '#timelineCode', 'SOL-260506-P02-002');
   assert.deepEqual(errors, []);

@@ -49,8 +49,14 @@
   // Eventos do conjunto de dados + registros locais da demonstração, ordenados pela etapa.
   function eventsFor(request, localEvents = []) {
     const base = request.events.map(event => ({ ...event, source: "conjunto fictício" }));
+    const seen = new Set(base.map(b => b.key));
     const local = localEvents
-      .filter(event => event.code === request.code && !base.some(b => b.key === event.key))
+      .filter(event => {
+        // Vale o primeiro registro de cada etapa; repetições são ignoradas.
+        if (event.code !== request.code || seen.has(event.key)) return false;
+        seen.add(event.key);
+        return true;
+      })
       .map(event => ({ ...event, source: "registro local" }));
     return [...base, ...local]
       .filter(event => Object.hasOwn(STAGE_INDEX, event.key))
@@ -97,6 +103,9 @@
 
   function summarize(request, events, now, config = {}) {
     const last = lastStage(events);
+    // SAMU 192 é exibido mas não é acompanhado pelo MOOV: etapas não registradas aqui não viram
+    // lacuna, pendência, retenção ou alerta (seriam números inventados a partir da ausência de registro).
+    const municipal = request.flowType === "municipal";
     const finishedAt = at(events, "recebido");
     const arrivedAt = at(events, "chegada_destino");
     const releasedAt = at(events, "liberado");
@@ -112,24 +121,25 @@
       destinationId: request.destinationId,
       stage: last,
       stageLabel: last ? stageLabel(last) : "Sem registro",
-      next: nextStage(events),
+      municipal,
+      next: municipal ? nextStage(events) : null,
       // Solicitação → recebimento (ou até agora, se em andamento).
       totalMin: minutesBetween(at(events, "solicitada"), finishedAt || now),
       finished: Boolean(finishedAt),
       // Solicitação → chegada do veículo à origem.
       responseMin: minutesBetween(at(events, "solicitada"), at(events, "chegada_origem")),
       // Tempo do veículo parado no destino até ser liberado (ou até agora).
-      retentionMin: arrivedAt ? minutesBetween(arrivedAt, releasedAt || now) : null,
-      retentionOpen: Boolean(arrivedAt && !releasedAt),
+      retentionMin: municipal && arrivedAt ? minutesBetween(arrivedAt, releasedAt || now) : null,
+      retentionOpen: Boolean(municipal && arrivedAt && !releasedAt),
       km: Number.isFinite(kmStart) && Number.isFinite(kmEnd) ? kmEnd - kmStart : null,
-      completeness: completeness(events),
+      completeness: municipal ? completeness(events) : { done: 0, total: 0, missing: [] },
       alerts: []
     };
 
     if (summary.retentionOpen && summary.retentionMin >= (config.retentionAlertMin ?? Infinity)) {
       summary.alerts.push(`Veículo retido no destino há ${summary.retentionMin} min`);
     }
-    if (last === "solicitada") {
+    if (municipal && last === "solicitada") {
       const waiting = minutesBetween(at(events, "solicitada"), now);
       if (waiting >= (config.unassignedAlertMin ?? Infinity)) {
         summary.alerts.push(`Sem veículo designado há ${waiting} min`);

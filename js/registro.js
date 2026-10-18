@@ -25,7 +25,7 @@
 
   function readCode() {
     const raw = (new URLSearchParams(window.location.search).get("codigo") || "").trim().toUpperCase();
-    return CODE_PATTERN.test(raw) ? raw : "";
+    return { code: CODE_PATTERN.test(raw) ? raw : "", invalid: raw !== "" && !CODE_PATTERN.test(raw) };
   }
 
   // Monta a observação a partir dos campos marcados com data-note-label (sem dados de paciente).
@@ -38,12 +38,15 @@
     return parts.join(" · ");
   }
 
-  function render(profile, code) {
+  function render(profile, code, invalid = false) {
     const request = code ? S.findRequest(MOOV_DATA, code) : null;
     show("#codeLookup", !request);
     show("#requestView", Boolean(request));
     if (!request) {
-      setText("#lookupMessage", code ? `Código ${code} não encontrado no conjunto fictício.` : "Abra esta página pelo link da solicitação ou informe o código.");
+      setText("#lookupMessage",
+        invalid ? "Código inválido no link. Use letras maiúsculas, números e hífen."
+          : code ? `Código ${code} não encontrado no conjunto fictício.`
+            : "Abra esta página pelo link da solicitação ou informe o código.");
       return;
     }
 
@@ -83,7 +86,7 @@
 
   function init() {
     const profile = document.body.dataset.profile;
-    const code = readCode();
+    const { code, invalid } = readCode();
 
     $("#codeLookup").addEventListener("submit", event => {
       event.preventDefault();
@@ -121,7 +124,12 @@
       button?.focus();
     });
 
-    render(profile, code);
+    // Registro feito em outra aba (outro perfil) libera ou bloqueia a etapa desta página.
+    window.addEventListener("storage", event => {
+      if (event.key === null || event.key.startsWith("moov-demo-")) render(profile, code);
+    });
+
+    render(profile, code, invalid);
   }
 
   document.addEventListener("DOMContentLoaded", init);
