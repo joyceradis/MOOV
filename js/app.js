@@ -54,7 +54,7 @@ async function ensureLeaflet() {
   } catch (primaryError) {
     console.warn("Falha ao carregar Leaflet da CDN principal, tentando fallback.", primaryError);
     try {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js");
+      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js", "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=");
       return true;
     } catch (fallbackError) {
       console.error("Falha ao carregar Leaflet no fallback.", fallbackError);

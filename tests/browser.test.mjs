@@ -209,6 +209,8 @@ for (const [name, fill] of Object.entries(FORMS)) {
 
       await page.waitForSelector('#success.show');
       assert.match(await page.textContent('#success'), /Nenhum dado é enviado ou armazenado/);
+      // Dá tempo para requisições adiadas (setTimeout/sendBeacon) aparecerem antes de checar a rede.
+      await page.waitForTimeout(300);
       assert.equal(navigated, false);
       assert.equal(page.url(), url);
       assert.deepEqual(external, []);
