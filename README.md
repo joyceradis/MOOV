@@ -9,7 +9,7 @@ Ferramenta de apoio à **gestão** (pública ou privada) de frotas de ambulânci
 ## O que funciona hoje
 
 **Painel da gestão (`index.html`)**
-- Indicadores calculados dos registros: tempo médio de resposta (solicitação → chegada à origem), tempo até o recebimento, retenção do veículo no destino, km por hodômetro, lastro documental — sempre com `n`.
+- Indicadores da **frota municipal** calculados dos registros (SAMU 192 contado à parte): tempo médio de resposta (solicitação → chegada à origem), tempo até o recebimento, retenção do veículo no destino, km por hodômetro, lastro documental — sempre com `n`.
 - Tabela por código com etapa atual, alertas, retenção e lacunas; filtros por fluxo, etapa, veículo e destino.
 - Cronologia da solicitação (horário, perfil, origem do registro, intervalo entre etapas) e lacunas explícitas.
 - Gargalos: transições mais lentas e retenção de veículos por destino. Uso da frota por veículo.
@@ -40,6 +40,7 @@ npm run check && npm test
 ```
 
 - `tests/metrics.test.mjs` — cálculos, com valores conferidos à mão sobre o conjunto fictício.
+- `tests/store.test.mjs` — validações do registro local (perfil, sequência, SAMU, km, falha de gravação, relógio).
 - `tests/smoke.test.mjs` — avisos, CSP, ausência de script inline/CDN, integridade do Leaflet versionado, links.
 - `tests/browser.test.mjs` — Chromium real: painel, filtros, fluxo ponta → painel, XSS, exportação, modo sem mapa, teclado, layout móvel. Toda requisição externa é bloqueada e verificada.
 
