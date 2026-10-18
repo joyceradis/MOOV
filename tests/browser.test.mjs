@@ -1,6 +1,5 @@
 // Testes de comportamento em navegador real (Chromium via Playwright).
-// Toda requisição externa é interceptada: Leaflet é servido a partir de node_modules
-// (o navegador ainda valida o SRI declarado) e tiles/CDNs desconhecidos são bloqueados.
+// Toda requisição para fora do servidor local é registrada e bloqueada (tiles do mapa inclusive).
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -14,7 +13,6 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json',
   '.png': 'image/png',
   '.svg': 'image/svg+xml'
 };
@@ -48,200 +46,251 @@ after(async () => {
   await new Promise(resolve => server?.close(resolve));
 });
 
-const LEAFLET = {
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js': ['node_modules/leaflet/dist/leaflet.js', 'text/javascript'],
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css': ['node_modules/leaflet/dist/leaflet.css', 'text/css']
-};
-
-// Abre uma página registrando toda requisição que sai do servidor local.
-async function openPage(path, { leaflet = true, viewport } = {}) {
-  const context = await browser.newContext({ viewport: viewport || { width: 1366, height: 900 } });
-  const page = await context.newPage();
+async function newContext({ viewport, blockLeaflet = false } = {}) {
+  const context = await browser.newContext({ viewport: viewport || { width: 1366, height: 900 }, acceptDownloads: true });
   const external = [];
+  await context.route(url => !url.href.startsWith(baseUrl), route => {
+    external.push(route.request().url());
+    return route.abort();
+  });
+  if (blockLeaflet) {
+    await context.route(url => url.href.includes('/vendor/leaflet-1.9.4/'), route => route.abort());
+  }
+  await context.addInitScript(() => {
+    window.__csp = [];
+    document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
+  });
+  return { context, external };
+}
+
+async function open(context, path) {
+  const page = await context.newPage();
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
-
-  await page.route(url => !url.href.startsWith(baseUrl), async route => {
-    const url = route.request().url();
-    external.push(url);
-    const local = leaflet && LEAFLET[url];
-    if (local) {
-      await route.fulfill({
-        body: await readFile(join(root, local[0])),
-        contentType: local[1],
-        headers: { 'access-control-allow-origin': '*' }
-      });
-    } else {
-      await route.abort();
-    }
-  });
-
   await page.goto(baseUrl + path);
-  return { page, context, external, errors };
+  return { page, errors };
 }
 
-test('dashboard: mapa inicializa com Leaflet íntegro (SRI) e sem erros de script', async () => {
-  const { page, context, errors } = await openPage('/index.html');
-  await page.waitForSelector('#map.leaflet-container');
-  await page.waitForSelector('.vehicle-wrap');
-  assert.equal(await page.locator('.vehicle-wrap').count(), 3);
-  // leaflet.css só é aplicado se o SRI conferir; sem ele os panes ficam estáticos e os marcadores saem do mapa.
-  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.leaflet-pane')).position), 'absolute');
-  const mapBox = await page.locator('#map').boundingBox();
-  for (const box of await Promise.all((await page.locator('.leaflet-marker-icon').all()).map(m => m.boundingBox()))) {
-    assert.ok(box.y >= mapBox.y && box.y + box.height <= mapBox.y + mapBox.height, 'marcador fora da área do mapa');
-  }
-  assert.deepEqual(errors, []);
-  await context.close();
-});
-
-test('dashboard: KPI de tempo médio permanece indisponível e demais KPIs seguem os filtros', async () => {
-  const { page, context } = await openPage('/index.html');
-  await page.waitForSelector('.vehicle-wrap');
-
-  const data = await page.evaluate(() => MOOV_DATA.transfers);
-  const expected = list => {
-    const events = list.flatMap(t => t.microevents);
-    const done = events.filter(e => e.state === 'done').length;
-    return {
-      total: String(list.length),
-      alerts: String(list.filter(t => t.alert).length),
-      complete: `${events.length ? Math.round((done / events.length) * 100) : 0}%`
-    };
-  };
-
-  const cases = [
-    ['all', 'all'],
-    ['municipal', 'all'],
-    ['samu', 'all'],
-    ['all', 'aguardando'],
-    ['samu', 'aguardando'] // combinação sem resultados
-  ];
-
-  for (const [flow, status] of cases) {
-    await page.selectOption('#flowType', flow);
-    await page.selectOption('#statusFilter', status);
-    const list = data.filter(t => (flow === 'all' || t.flowType === flow) && (status === 'all' || t.status === status));
-    const want = expected(list);
-    const label = `${flow}/${status}`;
-    assert.equal(await page.textContent('#kpiAvg'), '—', label);
-    assert.equal(await page.textContent('#kpiTotal'), want.total, label);
-    assert.equal(await page.textContent('#kpiAlerts'), want.alerts, label);
-    assert.equal(await page.textContent('#kpiComplete'), want.complete, label);
-    assert.equal(await page.locator('.vehicle-wrap').count(), list.length, label);
-  }
-
-  // Sem resultados, a seleção e a linha do tempo são limpas.
-  assert.equal(await page.textContent('#timelineCode'), 'Sem seleção');
-  await page.click('#resetFilters');
-  assert.equal(await page.textContent('#kpiTotal'), String(data.length));
-  await context.close();
-});
-
-test('dashboard: seleção pelo mapa atualiza cartão e linha do tempo', async () => {
-  const { page, context } = await openPage('/index.html');
-  await page.waitForSelector('.vehicle-wrap');
-  const target = await page.evaluate(() => MOOV_DATA.transfers[1]);
-  await page.locator('.leaflet-marker-icon', { has: page.locator('.vehicle-label', { hasText: target.vehicleLabel }) }).click();
-  await assertText(page, '#selectedTransfer h3', target.id);
-  await assertText(page, '#timelineCode', target.requestCode);
-  assert.equal(await page.locator('#timeline .timeline-step').count(), target.microevents.length);
-  await context.close();
-});
-
-test('dashboard: sem Leaflet, exibe aviso e mantém KPIs, linha do tempo e gargalos', async () => {
-  const { page, context, errors } = await openPage('/index.html', { leaflet: false });
-  await page.waitForSelector('.map-error-banner');
-  await assertText(page, '#kpiTotal', '3');
-  assert.equal(await page.textContent('#kpiAvg'), '—');
-  assert.ok((await page.locator('#bottleneckList .bottleneck-item').count()) > 0);
-  assert.ok((await page.locator('#timeline .timeline-step').count()) > 0);
-  await page.selectOption('#flowType', 'samu');
-  assert.equal(await page.textContent('#kpiTotal'), '1');
-  assert.deepEqual(errors, []);
-  await context.close();
-});
-
-const FORMS = {
-  motorista: async page => {
-    await page.selectOption('form select >> nth=0', { index: 1 });
-    await page.fill('form input[inputmode="numeric"]', '45021');
-    await page.selectOption('form select >> nth=1', { index: 1 });
-    await page.check('form input[type="checkbox"] >> nth=0');
-    return page.locator('form input[inputmode="numeric"]');
-  },
-  enfermagem: async page => {
-    await page.selectOption('form select >> nth=0', { index: 1 });
-    await page.selectOption('form select >> nth=1', { index: 1 });
-    await page.check('form input[type="checkbox"] >> nth=0');
-    await page.check('form input[type="checkbox"] >> nth=1');
-    return page.locator('form input[type="checkbox"] >> nth=1');
-  },
-  destino: async page => {
-    await page.selectOption('form select >> nth=0', { index: 1 });
-    await page.check('form input[type="checkbox"] >> nth=0');
-    return page.locator('form input:not([type])');
-  }
-};
-
-for (const [name, fill] of Object.entries(FORMS)) {
-  for (const mode of ['clique', 'Enter']) {
-    test(`formulário ${name}: envio por ${mode} é simulado, sem navegação, rede ou persistência`, async () => {
-      const { page, context, external, errors } = await openPage(`/pages/${name}.html`);
-      const url = page.url();
-      const notice = page.locator('.demo-notice');
-      assert.ok(await notice.isVisible());
-      assert.match(await notice.textContent(), /Nenhum dado é enviado ou armazenado/);
-      assert.equal(await page.locator('#success').isVisible(), false);
-
-      const field = await fill(page);
-      let navigated = false;
-      page.on('framenavigated', frame => {
-        if (frame === page.mainFrame()) navigated = true;
-      });
-
-      if (mode === 'Enter') {
-        await field.focus();
-        await page.keyboard.press('Enter');
-      } else {
-        await page.click('form button[type="submit"]');
-      }
-
-      await page.waitForSelector('#success.show');
-      assert.match(await page.textContent('#success'), /Nenhum dado é enviado ou armazenado/);
-      // Dá tempo para requisições adiadas (setTimeout/sendBeacon) aparecerem antes de checar a rede.
-      await page.waitForTimeout(300);
-      assert.equal(navigated, false);
-      assert.equal(page.url(), url);
-      assert.deepEqual(external, []);
-      assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
-      assert.deepEqual(errors, []);
-      await context.close();
-    });
-  }
-}
-
-test('formulário inválido não exibe confirmação', async () => {
-  const { page, context } = await openPage('/pages/motorista.html');
-  await page.click('form button[type="submit"]');
-  assert.equal(await page.locator('#success.show').count(), 0);
-  await context.close();
-});
-
-test('layout móvel: sem rolagem horizontal no painel e nos formulários', async () => {
-  for (const path of ['/index.html', '/pages/motorista.html', '/pages/enfermagem.html', '/pages/destino.html']) {
-    const { page, context } = await openPage(path, { viewport: { width: 375, height: 812 } });
-    await page.waitForLoadState('load');
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    assert.ok(overflow <= 1, `${path}: overflow horizontal de ${overflow}px`);
-    await context.close();
-  }
-});
+const nonTileRequests = list => list.filter(url => !/basemaps\.cartocdn\.com/.test(url));
 
 async function assertText(page, selector, expected) {
   await page.waitForFunction(
     ([sel, text]) => document.querySelector(sel)?.textContent.trim() === text,
     [selector, expected],
     { timeout: 5000 }
-  );
+  ).catch(async () => {
+    assert.equal((await page.textContent(selector))?.trim(), expected, selector);
+  });
 }
+
+test('painel: carrega sem erros nem violação de CSP; mapa esquemático com Leaflet local', async () => {
+  const { context, external } = await newContext();
+  const { page, errors } = await open(context, '/index.html');
+  await page.waitForSelector('#map.leaflet-container');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.leaflet-pane')).position), 'absolute');
+  // Marcadores esquemáticos: só solicitações com veículo e não liberadas (5 no conjunto).
+  assert.equal(await page.locator('.vehicle-wrap').count(), 5);
+  assert.match(await page.textContent('.map-caption'), /esquemática.*Não é GPS/s);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(await page.evaluate(() => window.__csp), []);
+  assert.deepEqual(nonTileRequests(external), []);
+  await context.close();
+});
+
+test('painel: indicadores calculados a partir dos registros (valores conferidos à mão)', async () => {
+  const { context } = await newContext();
+  const { page } = await open(context, '/index.html');
+  await assertText(page, '#kpiTotal', '8');
+  await assertText(page, '#kpiTotalDetail', '3 com alerta');
+  await assertText(page, '#kpiResponse', '12 min'); // (6+16+20+12+8+11)/6
+  await assertText(page, '#kpiResponseDetail', 'solicitação → chegada à origem · n=6');
+  await assertText(page, '#kpiTotalTime', '49 min'); // (65+51+31)/3
+  await assertText(page, '#kpiRetention', '2 h 32 min'); // 69+19+23+41
+  await assertText(page, '#kpiKm', '27 km'); // 13+14
+  await assertText(page, '#kpiKmDetail', '2 de 4 trajetos com km completo');
+
+  await page.selectOption('#flowType', 'municipal');
+  await assertText(page, '#kpiTotal', '6');
+  assert.equal(await page.locator('#requestTable tbody tr').count(), 6);
+  await page.selectOption('#destinationFilter', 'HUCAM');
+  await assertText(page, '#kpiTotal', '2');
+  await page.selectOption('#stageFilter', 'liberado');
+  await assertText(page, '#kpiTotal', '1');
+  await page.selectOption('#vehicleFilter', 'PMV-05');
+  await assertText(page, '#kpiTotal', '0');
+  await assertText(page, '#kpiResponse', '—');
+  await assertText(page, '#timelineCode', 'Sem seleção');
+  await page.click('#resetFilters');
+  await assertText(page, '#kpiTotal', '8');
+  await context.close();
+});
+
+test('painel: seleção por código mostra cronologia, lacunas e links da ponta (só frota municipal)', async () => {
+  const { context } = await newContext();
+  const { page } = await open(context, '/index.html');
+  await page.click('[data-select="SOL-260506-P03-004"]');
+  await assertText(page, '#timelineCode', 'SOL-260506-P03-004');
+  assert.equal(await page.locator('#timeline li.done').count(), 8);
+  assert.match(await page.textContent('#timeline li.gap'), /Chegada ao destino: km não informado/);
+  assert.equal(await page.getAttribute('[data-select="SOL-260506-P03-004"]', 'aria-pressed'), 'true');
+  const href = await page.getAttribute('#selectedTransfer a[href*="motorista"]', 'href');
+  assert.equal(href, './pages/motorista.html?codigo=SOL-260506-P03-004');
+
+  await page.click('[data-select="SAMU-192-260506-003"]');
+  await assertText(page, '#timelineCode', 'SAMU-192-260506-003');
+  assert.equal(await page.locator('#selectedTransfer .front-links').count(), 0);
+  assert.match(await page.textContent('#selectedTransfer'), /fora da frota municipal/);
+  await context.close();
+});
+
+test('fluxo completo: motorista e destino registram pelo código; painel em outra aba atualiza', async () => {
+  const { context, external } = await newContext();
+  const { page: dash } = await open(context, '/index.html');
+  await assertText(dash, '#localCount', 'Nenhum registro local.');
+
+  const code = 'SOL-260506-P01-001';
+  const { page: driver, errors } = await open(context, `/pages/motorista.html?codigo=${code}`);
+  await assertText(driver, '#sumCode', code);
+  await assertText(driver, '#nextStage', 'Chegada ao destino');
+  assert.ok(await driver.locator('#kmField').isVisible());
+
+  // Km menor que o da saída é recusado e nada é gravado.
+  await driver.fill('#kmField', '45000');
+  await driver.check('#confirmVehicle');
+  await driver.click('#stageForm button[type="submit"]');
+  await driver.waitForSelector('#success.show.error');
+  assert.match(await driver.textContent('#success'), /Km menor que o registrado anteriormente \(45021\)/);
+  assert.equal(await driver.evaluate(() => localStorage.getItem('moov-demo-events-v1')), null);
+
+  // Envio por Enter, com tentativa de injeção de HTML na observação.
+  const url = driver.url();
+  await driver.fill('#kmField', '45035');
+  await driver.selectOption('#routeCondition', 'Trânsito intenso');
+  await driver.fill('#noteField', '<img src=x onerror="window.__xss=1">');
+  await driver.locator('#kmField').press('Enter');
+  await driver.waitForSelector('#success.show:not(.error)');
+  assert.match(await driver.textContent('#success'), /registrada às 09:30 .*apenas neste navegador/);
+  assert.equal(driver.url(), url);
+  // Próxima etapa é do destino: motorista fica bloqueado.
+  await driver.waitForSelector('#blockedMessage:not([hidden])');
+  assert.match(await driver.textContent('#blockedMessage'), /Recebido no destino — registro pelo perfil Destino/);
+
+  // Painel (outra aba) recebe o evento storage e recalcula.
+  await assertText(dash, '#localCount', '1 registro(s) local(is) neste navegador.');
+  await assertText(dash, '#kpiKm', '41 km'); // 27 + 14
+  await dash.click(`[data-select="${code}"]`);
+  const last = dash.locator('#timeline li.done').last();
+  assert.match(await last.textContent(), /Chegada ao destino.*registro local.*km 45035/s);
+  assert.match(await last.locator('em').textContent(), /Trajeto: Trânsito intenso · Obs: <img src=x onerror="window.__xss=1">/);
+  assert.equal(await dash.locator('#timeline img').count(), 0);
+  assert.equal(await dash.evaluate(() => window.__xss), undefined);
+
+  // Destino registra o recebimento; equipe não tem etapa pendente.
+  const { page: dest } = await open(context, `/pages/destino.html?codigo=${code}`);
+  await assertText(dest, '#nextStage', 'Recebido no destino');
+  await dest.fill('#sectorField', 'Pronto-socorro');
+  await dest.check('#receivedCheck');
+  await dest.click('#stageForm button[type="submit"]');
+  await dest.waitForSelector('#success.show:not(.error)');
+  const { page: team } = await open(context, `/pages/enfermagem.html?codigo=${code}`);
+  assert.match(await team.textContent('#blockedMessage'), /Veículo liberado — registro pelo perfil Motorista/);
+  await assertText(dash, '#localCount', '2 registro(s) local(is) neste navegador.');
+
+  // Apagar registros locais volta ao conjunto fictício.
+  await dash.click('#resetDemo');
+  await assertText(dash, '#localCount', 'Nenhum registro local.');
+  await assertText(dash, '#kpiKm', '27 km');
+
+  await dash.waitForTimeout(300);
+  assert.deepEqual(nonTileRequests(external), []);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(await driver.evaluate(() => window.__csp), []);
+  await context.close();
+});
+
+test('páginas da ponta: sem código pedem o código; código inexistente e SAMU são tratados', async () => {
+  const { context } = await newContext();
+  const { page } = await open(context, '/pages/motorista.html');
+  assert.ok(await page.locator('#codeLookup').isVisible());
+  assert.equal(await page.locator('#requestView').isVisible(), false);
+  await page.fill('#codeInput', 'sol-260506-p02-002');
+  await page.click('#codeLookup button[type="submit"]');
+  await page.waitForURL(/codigo=SOL-260506-P02-002/);
+  await assertText(page, '#sumCode', 'SOL-260506-P02-002');
+  assert.match(await page.textContent('#blockedMessage'), /registro pelo perfil Destino/);
+
+  await page.goto(`${baseUrl}/pages/destino.html?codigo=NAO-EXISTE-1`);
+  assert.match(await page.textContent('#lookupMessage'), /NAO-EXISTE-1 não encontrado/);
+  await page.goto(`${baseUrl}/pages/destino.html?codigo=%3Cscript%3E`);
+  assert.match(await page.textContent('#lookupMessage'), /Abra esta página pelo link/);
+  await page.goto(`${baseUrl}/pages/motorista.html?codigo=SAMU-192-260506-007`);
+  assert.match(await page.textContent('#blockedMessage'), /SAMU 192/);
+  assert.equal(await page.locator('#stageForm').isVisible(), false);
+  await context.close();
+});
+
+test('formulário inválido não registra', async () => {
+  const { context } = await newContext();
+  const { page } = await open(context, '/pages/enfermagem.html?codigo=SOL-260506-P02-005');
+  // Próxima etapa é do motorista (chegada à origem): equipe bloqueada.
+  assert.ok(await page.locator('#blockedMessage').isVisible());
+  await page.goto(`${baseUrl}/pages/motorista.html?codigo=SOL-260506-P02-005`);
+  await assertText(page, '#nextStage', 'Chegada à origem');
+  assert.equal(await page.locator('#kmField').isVisible(), false);
+  await page.click('#stageForm button[type="submit"]'); // checkbox obrigatório desmarcado
+  assert.equal(await page.locator('#success.show').count(), 0);
+  assert.equal(await page.evaluate(() => localStorage.length), 0);
+  await context.close();
+});
+
+test('exportação CSV da trilha de auditoria e do resumo', async () => {
+  const { context } = await newContext();
+  const { page } = await open(context, '/index.html');
+  await page.selectOption('#flowType', 'municipal');
+  const [audit] = await Promise.all([page.waitForEvent('download'), page.click('#exportAudit')]);
+  assert.match(audit.suggestedFilename(), /^moov-trilha-auditoria-DEMO-.*\.csv$/);
+  const auditText = (await readFile(await audit.path(), 'utf8')).replace(/^﻿/, '');
+  const lines = auditText.trim().split('\r\n');
+  assert.equal(lines[0], 'codigo;regulacao;fluxo;veiculo;origem;destino;etapa;horario;perfil;km;fonte;observacao');
+  assert.equal(lines.length - 1, 5 + 6 + 8 + 8 + 2 + 1); // eventos das 6 solicitações municipais
+  assert.ok(lines.every(l => !l.includes('SAMU-192')));
+
+  const [summary] = await Promise.all([page.waitForEvent('download'), page.click('#exportSummary')]);
+  const rows = (await readFile(await summary.path(), 'utf8')).trim().split('\r\n');
+  assert.equal(rows.length, 7);
+  assert.match(rows.find(r => r.startsWith('SOL-260506-P03-004')), /Chegada ao destino: km não informado/);
+  await context.close();
+});
+
+test('sem Leaflet: aviso e painel funcional, com seleção pela tabela', async () => {
+  const { context } = await newContext({ blockLeaflet: true });
+  const { page, errors } = await open(context, '/index.html');
+  await page.waitForSelector('.map-error-banner');
+  await assertText(page, '#kpiTotal', '8');
+  await page.click('[data-select="SOL-260506-P02-002"]');
+  await assertText(page, '#timelineCode', 'SOL-260506-P02-002');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('teclado: link de salto e seleção de código pela tabela', async () => {
+  const { context } = await newContext();
+  const { page } = await open(context, '/index.html');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'skip-link');
+  await page.locator('[data-select="SOL-260506-P01-003"]').focus();
+  await page.keyboard.press('Enter');
+  await assertText(page, '#timelineCode', 'SOL-260506-P01-003');
+  await context.close();
+});
+
+test('layout móvel: sem rolagem horizontal no painel e nas páginas da ponta', async () => {
+  for (const path of ['/index.html', '/pages/motorista.html?codigo=SOL-260506-P01-001', '/pages/enfermagem.html', '/pages/destino.html?codigo=SOL-260506-P02-002']) {
+    const { context } = await newContext({ viewport: { width: 375, height: 812 } });
+    const { page } = await open(context, path);
+    await page.waitForLoadState('load');
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert.ok(overflow <= 1, `${path}: overflow horizontal de ${overflow}px`);
+    await context.close();
+  }
+});
