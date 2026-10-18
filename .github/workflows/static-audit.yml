@@ -11,15 +11,21 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Actions fixadas por SHA de commit (tags são móveis). Atualizar só após revisar o diff upstream.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          node-version: '20'
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dev dependencies (lockfile)
+        run: npm ci --ignore-scripts
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
       - name: Check JavaScript syntax
-        run: |
-          set -euo pipefail
-          find js tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 node --check
-      - name: Run static smoke checks
-        run: node --test tests/smoke.test.mjs
+        run: npm run check
+      - name: Static and browser tests
+        run: npm test

@@ -1,0 +1,16 @@
+{
+  "name": "moov",
+  "private": true,
+  "description": "MOOV — protótipo estático de governança de frota de ambulâncias (dados fictícios).",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "check": "find js tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
+    "test": "node --test tests/*.test.mjs",
+    "test:static": "node --test tests/smoke.test.mjs",
+    "test:browser": "node --test tests/browser.test.mjs"
+  },
+  "devDependencies": {
+    "leaflet": "1.9.4",
+    "playwright": "1.56.1"
+  }
+}
