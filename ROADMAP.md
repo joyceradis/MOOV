@@ -17,7 +17,7 @@
 - [x] Mapa esquemático (não-GPS); Leaflet local; CSP.
 - [ ] Período/data como filtro (requer conjunto com vários dias).
 - [ ] Página de origem/regulação para abrir solicitação e designar veículo.
-- [ ] Relatório imprimível para prestação de contas.
+- [x] Relatório imprimível (PDF pelo navegador) para prestação de contas.
 
 ## Gate de decisão de produto — [#4](https://github.com/joyceradis/MOOV/issues/4)
 Sem decisão explícita e responsáveis institucionais, **não** implementar servidor com dados reais, autenticação em produção ou integrações.

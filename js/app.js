@@ -365,6 +365,30 @@ function exportSummary() {
   download(`moov-resumo-solicitacoes-DEMO-${now.replace(/[:T]/g, "")}.csv`, M.toCsv(lines));
 }
 
+// ---------- relatório para impressão ----------
+
+function selectedText(select) {
+  return select.options[select.selectedIndex]?.textContent || "Todos";
+}
+
+// Cabeçalho do relatório: recorte aplicado, relógio, data de geração e indicadores do painel.
+function renderPrintHeader() {
+  const { now } = computeAll();
+  const generated = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  const kpis = [...document.querySelectorAll(".metrics article")].map(article => `
+    <div><small>${escapeHtml(article.querySelector("small").textContent)}</small>
+    <b>${escapeHtml(article.querySelector("strong").textContent)}</b>
+    <span>${escapeHtml(article.querySelector("span").textContent)}</span></div>`).join("");
+  document.getElementById("printHeader").innerHTML = `
+    <p class="print-notice"><strong>DEMONSTRAÇÃO · DADOS FICTÍCIOS.</strong> Não representa ambulâncias, pacientes ou atendimentos reais.</p>
+    <h1>MOOV · Relatório de governança da frota</h1>
+    <p>Recorte: fluxo ${escapeHtml(selectedText(ELEMENTS.flowType))} · etapa ${escapeHtml(selectedText(ELEMENTS.stageFilter))} ·
+      veículo ${escapeHtml(selectedText(ELEMENTS.vehicleFilter))} · destino ${escapeHtml(selectedText(ELEMENTS.destinationFilter))}</p>
+    <p>Relógio da demonstração: ${formatTime(now)} · gerado em ${escapeHtml(generated)}</p>
+    <div class="print-kpis">${kpis}</div>
+    <p class="print-small">Definições e limites metodológicos ao final. SAMU 192 fora dos indicadores da frota municipal.</p>`;
+}
+
 // ---------- ciclo ----------
 
 function refreshDashboard() {
@@ -391,7 +415,7 @@ function initApp() {
     "kpiTotal", "kpiTotalDetail", "kpiResponse", "kpiResponseDetail", "kpiTotalTime", "kpiTotalTimeDetail", "kpiRetention",
     "kpiRetentionDetail", "kpiKm", "kpiKmDetail", "kpiComplete", "kpiCompleteDetail", "selectedTransfer", "timeline",
     "timelineCode", "bottleneckList", "retentionList", "requestTable", "requestCount", "fleetTable", "exportAudit",
-    "exportSummary", "cfgRetention", "cfgUnassigned"
+    "exportSummary", "printReport", "cfgRetention", "cfgUnassigned"
   ].forEach(id => { ELEMENTS[id] = document.getElementById(id); });
 
   fillSelect(ELEMENTS.stageFilter, M.STAGES.map(s => [s.key, s.label]));
@@ -417,6 +441,8 @@ function initApp() {
   });
   ELEMENTS.exportAudit.addEventListener("click", exportAudit);
   ELEMENTS.exportSummary.addEventListener("click", exportSummary);
+  ELEMENTS.printReport.addEventListener("click", () => window.print());
+  window.addEventListener("beforeprint", renderPrintHeader);
 
   // Registros feitos em outra aba (páginas da ponta) atualizam o painel.
   window.addEventListener("storage", event => {

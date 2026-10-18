@@ -1078,3 +1078,43 @@ textarea:focus-visible {
 
 .selected-panel { margin-top: 18px; }
 .selected-panel h3 { margin: 4px 0; font-size: 22px; }
+
+/* ---------- Relatório para impressão ---------- */
+.print-only { display: none; }
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  :root {
+    --text: #10202e;
+    --muted: #4a5d6c;
+    --cyan: #0b6f6c;
+    --orange: #8a5300;
+    --line: #c9d6df;
+  }
+  html, body { background: #fff !important; color: var(--text); }
+  .app-shell { display: block; }
+  .sidebar, .skip-link, .no-print, .topbar-actions, .map-error-banner { display: none !important; }
+  .print-only { display: block; }
+  .main-content { padding: 0; }
+  .panel, .architecture-grid article, .bottleneck-item {
+    background: #fff !important;
+    box-shadow: none !important;
+    border: 1px solid var(--line) !important;
+    break-inside: avoid;
+  }
+  .content-grid { display: block; }
+  .data-table { font-size: 10px; }
+  .data-table th, .data-table td { padding: 4px; }
+  .data-table tbody tr.selected { background: none; }
+  .link-button { color: var(--text); text-decoration: none; }
+  .alert-text, .data-table .alert-text { color: #a10f2b; }
+  .flow-tag { border: 1px solid var(--line); background: none !important; }
+  #printHeader h1 { margin: 6px 0; font-size: 20px; }
+  #printHeader p { margin: 2px 0; font-size: 11px; }
+  .print-notice { padding: 6px 8px; border: 2px solid #a10f2b; color: #a10f2b; }
+  .print-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0; }
+  .print-kpis div { border: 1px solid var(--line); padding: 6px; }
+  .print-kpis small, .print-kpis span { display: block; font-size: 9px; color: var(--muted); }
+  .print-kpis b { font-size: 16px; }
+  .print-small { font-size: 9px; color: var(--muted); }
+}
