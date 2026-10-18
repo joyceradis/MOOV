@@ -373,20 +373,19 @@ function selectedText(select) {
 
 // Cabeçalho do relatório: recorte aplicado, relógio, data de geração e indicadores do painel.
 function renderPrintHeader() {
-  const { now } = computeAll();
   const generated = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
   const kpis = [...document.querySelectorAll(".metrics article")].map(article => `
     <div><small>${escapeHtml(article.querySelector("small").textContent)}</small>
     <b>${escapeHtml(article.querySelector("strong").textContent)}</b>
     <span>${escapeHtml(article.querySelector("span").textContent)}</span></div>`).join("");
   document.getElementById("printHeader").innerHTML = `
-    <p class="print-notice"><strong>DEMONSTRAÇÃO · DADOS FICTÍCIOS.</strong> Não representa ambulâncias, pacientes ou atendimentos reais.</p>
     <h1>MOOV · Relatório de governança da frota</h1>
     <p>Recorte: fluxo ${escapeHtml(selectedText(ELEMENTS.flowType))} · etapa ${escapeHtml(selectedText(ELEMENTS.stageFilter))} ·
       veículo ${escapeHtml(selectedText(ELEMENTS.vehicleFilter))} · destino ${escapeHtml(selectedText(ELEMENTS.destinationFilter))}</p>
-    <p>Relógio da demonstração: ${formatTime(now)} · gerado em ${escapeHtml(generated)}</p>
+    <p>Relógio da demonstração: ${escapeHtml(ELEMENTS.demoClock.textContent)} · gerado em ${escapeHtml(generated)}</p>
     <div class="print-kpis">${kpis}</div>
-    <p class="print-small">Definições e limites metodológicos ao final. SAMU 192 fora dos indicadores da frota municipal.</p>`;
+    <p class="print-small">Definições e limites metodológicos ao final. SAMU 192 fora dos indicadores da frota municipal.
+      A tabela de frota considera todas as solicitações do conjunto, independentemente do recorte.</p>`;
 }
 
 // ---------- ciclo ----------
@@ -442,7 +441,10 @@ function initApp() {
   ELEMENTS.exportAudit.addEventListener("click", exportAudit);
   ELEMENTS.exportSummary.addEventListener("click", exportSummary);
   ELEMENTS.printReport.addEventListener("click", () => window.print());
-  window.addEventListener("beforeprint", renderPrintHeader);
+  window.addEventListener("beforeprint", () => {
+    refreshDashboard();
+    renderPrintHeader();
+  });
 
   // Registros feitos em outra aba (páginas da ponta) atualizam o painel.
   window.addEventListener("storage", event => {
