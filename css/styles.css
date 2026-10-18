@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+/* Sem fontes remotas: evita requisição a terceiros (privacidade/LGPD); Inter é usada se instalada. */
 
 :root {
   --bg: #06111d;
@@ -443,6 +443,7 @@ button {
 
 .timeline {
   display: flex;
+  min-width: 0;
   gap: 12px;
   overflow-x: auto;
   padding-top: 18px;
@@ -836,7 +837,7 @@ button {
 
   .content-grid,
   .architecture-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -864,3 +865,14 @@ button {
     height: 560px;
   }
 }
+
+/* Aviso de natureza demonstrativa: legível sem sobrepor mapa ou formulários. */
+.demo-notice {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.demo-notice strong { color: var(--text); }

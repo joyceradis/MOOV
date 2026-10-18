@@ -1,63 +1,60 @@
-# MOOV Dashboard Final
+# MOOV · Painel demonstrativo de transições assistenciais
 
-Protótipo front-end estático do **Painel de Governança MOOV**, separado por pastas e pronto para evoluir em GitHub.
+Protótipo **estático e demonstrativo** de visualização do fluxo de transporte entre serviços de saúde da Grande Vitória. Não é sistema operacional de ambulâncias, regulação ou prontuário.
 
-## Estrutura de pastas
+> **Dados integralmente ilustrativos.** Veículos, trajetos, horários, ETAs, gargalos e microeventos exibidos no painel são exemplos; não há API operacional, rastreamento de frota, autenticação, transmissão de registros ou integração com PMV/SAMU 192. **Não inserir dados reais de pacientes ou profissionais.**
 
-```txt
-MOOV_dashboard_final/
-  index.html
-  css/
-    styles.css
-  js/
-    data.js
-    ui.js
-    map.js
-    dashboard.js
-    forms.js
-  pages/
-    motorista.html
-    enfermagem.html
-    destino.html
-  assets/
-    icons/
-    img/
-  docs/
-    arquitetura.md
+## O que pode ser demonstrado
+
+- Mapa interativo com unidades, veículos SVG e rotas exemplificativas (Leaflet + OpenStreetMap/CARTO).
+- Filtros por tipo de fluxo (municipal e SAMU) e por status, seleção de transferências e linha do tempo.
+- Contagem de transferências e eventos concluídos **do conjunto de demonstração**.
+- Microformulários de motorista, equipe assistencial e destino: **simulam confirmação local**, não enviam informações.
+- Separação conceitual: frota municipal e SAMU aparecem de forma distinta, sem insinuar governança integrada.
+
+**Limitações dos indicadores:** não existe base de eventos de produção nem estimador de tempo de resposta; métricas não observadas não devem ser apresentadas como medidas reais.
+
+## Executar
+
+Abra `index.html` em navegador conectado à internet. É necessário acessar CDN e tiles do mapa. O conteúdo principal usa HTML/CSS/JavaScript, sem backend nem build. Para simular um servidor estático:
+
+```bash
+python3 -m http.server 8080
+# http://localhost:8080
 ```
 
-## Como abrir
+## Estrutura observada
 
-Abra `index.html` no navegador.
+```text
+index.html           painel demonstrativo (js/data.js + js/app.js)
+css/styles.css       visual
+js/data.js           eventos, unidades e gargalos fictícios
+js/app.js            entrada do painel e controle do mapa
+js/dashboard.js      implementação histórica — não incluída em index.html
+js/map.js            implementação histórica — verificar antes de reaproveitar
+js/ui.js             helpers da implementação histórica
+js/forms.js          helper legado — formulários atuais possuem script inline
+pages/
+  motorista.html
+  enfermagem.html
+  destino.html
+docs/
+  arquitetura.md
+ROADMAP.md           etapas e gates de decisão
+SECURITY.md          segurança e reporte
+.github/workflows/   verificações automáticas propostas
+```
 
-O mapa usa Leaflet + Carto/OSM por CDN, então precisa de internet.
+Não remover módulos históricos sem inventário de chamadas/referências. Eles não são carregados pela entrada principal atualmente.
 
-## O que está incluído
+## Validação
 
-- Dashboard executivo com mapa da Grande Vitória.
-- Ambulâncias em SVG com luzes piscando, halo neon e diferenciação PMV/SAMU.
-- Rotas estimadas em neon.
-- KPIs executivos.
-- Filtros por tipo de fluxo e status.
-- Linha viva de microeventos.
-- Matriz de gargalos.
-- Microformulários mockados para:
-  - motorista;
-  - enfermagem/equipe assistencial;
-  - destino/aceite.
+Ao propor alterações, rodar as verificações da CI (sintaxe JavaScript, testes de dados sintéticos e referências dos arquivos HTML). Complementar com inspeção visual manual em desktop e celular; testes estáticos não demonstram funcionamento de CDN, mapa e acessibilidade em navegador.
 
-## Separação conceitual
+## Próximos passos
 
-- **Ponta operacional:** link seguro + microcheck rápido.
-- **Gestão:** painel executivo com dados consolidados.
-- **Fluxo municipal/PMV:** entra na governança municipal.
-- **SAMU 192:** aparece identificado, mas separado da frota municipal.
+Consultar [ROADMAP.md](ROADMAP.md). **Primeiro consolidar a demonstração transparente**; só avaliar eventual produto operacional depois de decisão explícita, desenho institucional, segurança e LGPD. Ver [issue #4](https://github.com/joyceradis/MOOV/issues/4).
 
-## Próximos passos técnicos
+## Licença
 
-1. Ajustar identidade visual real das ambulâncias PMV.
-2. Substituir `js/data.js` por API.
-3. Criar autenticação e controle por perfil.
-4. Persistir microeventos em banco de dados.
-5. Incluir logs, tokens temporários, RBAC e trilha de auditoria.
-6. Criar deploy em GitHub Pages/Vercel/Netlify para demonstração
+Código sob [GPL-3.0](LICENSE). Nomes, marcas e símbolos de instituições reais não significam vínculo, homologação nem autorização operacional.

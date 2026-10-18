@@ -54,7 +54,7 @@ async function ensureLeaflet() {
   } catch (primaryError) {
     console.warn("Falha ao carregar Leaflet da CDN principal, tentando fallback.", primaryError);
     try {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js");
+      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js", "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=");
       return true;
     } catch (fallbackError) {
       console.error("Falha ao carregar Leaflet no fallback.", fallbackError);
@@ -184,6 +184,10 @@ function filteredTransfers() {
 }
 
 function drawTransfers(transfers) {
+  if (!map) {
+    return;
+  }
+
   clearMapLayers();
 
   transfers.forEach(item => {
@@ -254,7 +258,7 @@ function updateKPIs(transfers) {
 
   ELEMENTS.kpiTotal.textContent = transfers.length;
   ELEMENTS.kpiAlerts.textContent = transfers.filter(t => t.alert).length;
-  ELEMENTS.kpiAvg.textContent = "12 min";
+  ELEMENTS.kpiAvg.textContent = "—";
   ELEMENTS.kpiComplete.textContent = `${completion}%`;
 }
 
@@ -371,12 +375,12 @@ async function initApp() {
   ELEMENTS.timelineCode = document.getElementById("timelineCode");
   ELEMENTS.bottleneckList = document.getElementById("bottleneckList");
 
-  if (!(await ensureLeaflet())) {
-    return;
+  // Sem Leaflet, o painel segue funcional sem o mapa: KPIs, linha do tempo e gargalos não dependem dele.
+  if (await ensureLeaflet()) {
+    initMap();
+    drawUnits();
   }
 
-  initMap();
-  drawUnits();
   renderBottlenecks();
   bindControls();
   refreshDashboard();
