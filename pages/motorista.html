@@ -3,104 +3,88 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MOOV | Microformulário Motorista</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <title>MOOV | Página do motorista</title>
   <link rel="stylesheet" href="../css/styles.css" />
 </head>
 
-<body class="form-body">
+<body class="form-body" data-profile="motorista">
   <main class="form-shell">
-    <p class="demo-notice" role="note"><strong>Simulação com dados fictícios.</strong> Nenhum dado é enviado ou armazenado. Não preencher com dados reais.</p>
+    <p class="demo-notice" role="note"><strong>Simulação com dados fictícios.</strong> O registro fica apenas neste navegador; nenhum dado é enviado a servidor. Não preencher com dados reais.</p>
     <header>
       <a class="brand-mark" href="../index.html">MOOV</a>
-      <p style="color: var(--muted)">
-        Exemplo de interface; não é um link seguro temporário.
-      </p>
-      <h1>Microcheck do motorista</h1>
+      <p class="muted">Dados logísticos mínimos da solicitação.</p>
+      <h1>Registro do motorista</h1>
     </header>
 
     <section class="panel form-card">
-      <div class="transfer-summary">
-        <div>
-          <small>Código da remoção</small>
-          <strong>R260506-P01-SM08-H01-001</strong>
-        </div>
-
-        <div>
-          <small>Origem</small>
-          <strong>PA São Pedro</strong>
-        </div>
-
-        <div>
-          <small>Destino</small>
-          <strong>Hospital Evangélico</strong>
-        </div>
-
-        <div>
-          <small>Veículo</small>
-          <strong>PMV-08</strong>
-        </div>
-      </div>
-
-      <div class="privacy-note">
-        Este link não exibe diagnóstico, CID, CPF, CNS, exames, história clínica ou prontuário.
-      </div>
-
-      <form id="form">
-        <label>Etapa operacional</label>
-        <select required>
-          <option value="">Selecione</option>
-          <option>Cheguei à unidade de origem</option>
-          <option>Paciente embarcado</option>
-          <option>Saída da unidade de origem</option>
-          <option>Em deslocamento</option>
-          <option>Cheguei ao destino</option>
-          <option>Paciente entregue à unidade de destino</option>
-        </select>
-
-        <label>KM atual</label>
-        <input inputmode="numeric" placeholder="Ex.: 45021" required />
-
-        <label>Condição operacional do trajeto</label>
-        <select required>
-          <option value="">Selecione</option>
-          <option>Sem intercorrência operacional</option>
-          <option>Trânsito intenso</option>
-          <option>Acesso dificultado</option>
-          <option>Espera na origem</option>
-          <option>Espera no destino</option>
-          <option>Outra intercorrência logística</option>
-        </select>
-
-        <label class="check-item">
-          <input type="checkbox" required />
-          Confirmo que estou no veículo designado para esta remoção.
-        </label>
-
-        <label class="check-item">
-          <input type="checkbox" />
-          Houve atraso ou intercorrência operacional relevante.
-        </label>
-
-        <label>Observação operacional mínima</label>
-        <textarea placeholder="Ex.: trânsito intenso, espera na portaria, acesso bloqueado..."></textarea>
-
+      <form id="codeLookup" hidden>
+        <label for="codeInput">Código da solicitação</label>
+        <input id="codeInput" autocomplete="off" autocapitalize="characters" placeholder="Ex.: SOL-260506-P01-001" required />
+        <p id="lookupMessage" class="muted" role="status"></p>
         <div class="form-actions">
-          <button type="submit">Registrar microevento</button>
+          <button type="submit">Abrir solicitação</button>
           <a href="../index.html">Voltar ao painel</a>
         </div>
-
-        <div class="success" id="success">
-          Simulação concluída. Nenhum dado é enviado ou armazenado; o painel não foi atualizado.
-        </div>
       </form>
+
+      <div id="requestView" hidden>
+        <div class="transfer-summary">
+          <div><small>Código da solicitação</small><strong id="sumCode">--</strong></div>
+          <div><small>Regulação</small><strong id="sumRegulation">--</strong></div>
+          <div><small>Origem</small><strong id="sumOrigin">--</strong></div>
+          <div><small>Destino</small><strong id="sumDestination">--</strong></div>
+          <div><small>Veículo</small><strong id="sumVehicle">--</strong></div>
+          <div><small>Última etapa</small><strong id="sumStage">--</strong></div>
+        </div>
+
+        <div class="privacy-note">
+          Esta página não exibe nem solicita nome, CPF, CNS, diagnóstico, CID, exames ou prontuário.
+        </div>
+
+        <p id="blockedMessage" class="blocked-message" role="status" hidden></p>
+
+        <form id="stageForm" hidden>
+          <p class="next-stage">Etapa a registrar: <strong id="nextStage">--</strong></p>
+          <div id="kmGroup" hidden>
+            <label for="kmField">Km do hodômetro</label>
+            <input id="kmField" inputmode="numeric" pattern="[0-9]*" placeholder="Ex.: 45021" />
+          </div>
+
+          <label for="routeCondition">Condição operacional do trajeto</label>
+          <select id="routeCondition" data-note-label="Trajeto">
+            <option value="">Sem intercorrência operacional</option>
+            <option>Trânsito intenso</option>
+            <option>Acesso dificultado</option>
+            <option>Espera na origem</option>
+            <option>Espera no destino</option>
+            <option>Outra intercorrência logística</option>
+          </select>
+
+          <label class="check-item">
+            <input type="checkbox" id="confirmVehicle" required />
+            Confirmo que estou no veículo designado para esta solicitação.
+          </label>
+
+          <label for="noteField">Observação operacional mínima</label>
+          <textarea id="noteField" maxlength="120" data-note-label="Obs" placeholder="Ex.: trânsito intenso, espera na portaria, acesso bloqueado..."></textarea>
+          <small class="muted">Não inclua dados de paciente. Máx. 120 caracteres.</small>
+
+          <div class="form-actions">
+            <button type="submit">Registrar etapa</button>
+            <a href="../index.html">Voltar ao painel</a>
+          </div>
+        </form>
+
+        <div class="success" id="success" role="status" aria-live="polite"></div>
+      </div>
     </section>
   </main>
 
-  <script>
-    document.getElementById("form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      document.getElementById("success").classList.add("show");
-    });
-  </script>
+  <script src="../js/data.js"></script>
+  <script src="../js/metrics.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="../js/registro.js"></script>
 </body>
 </html>

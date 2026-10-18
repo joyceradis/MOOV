@@ -1,38 +1,32 @@
 # Roadmap · MOOV
 
-**Estado em 17/10/2026:** protótipo front-end com base sintética; **não operacional**. O roadmap descreve intenção, não comprovação de entrega. Issue central de priorização: [#2](https://github.com/joyceradis/MOOV/issues/2).
+**Estado em 18/10/2026:** protótipo estático, dados fictícios, **não operacional**. Itens marcados indicam código integrado e testado, não homologação.
 
-## Etapa A — Demonstração íntegra e transparente (P0)
+## Etapa A — Demonstração íntegra (P0)
+- [x] Aviso persistente de dados fictícios no painel e nas páginas da ponta.
+- [x] Indicadores calculados a partir dos registros, com `n`; nenhum valor fixo.
+- [x] Registro simulado declara armazenamento apenas local.
+- [x] Testes em navegador: filtros, seleção, falha do mapa, mobile, teclado.
 
-- [ ] Aviso persistente de dados fictícios no painel e nos microformulários.
-- [ ] Diferenciar indicadores calculados do dataset sintético daqueles sem cálculo implementado.
-- [ ] Garantir que registro simulado nunca afirme que o evento foi transmitido ou persistido.
-- [ ] Verificar filtros, escolha de transferência, linhas do tempo, erro de CDN e comportamento mobile.
-- [ ] Não permitir entrada de informações reais em fluxos demonstrativos.
+## Etapa B — MVP de gestão (P1)
+- [x] Código por solicitação/regulação; páginas da ponta abertas pelo código.
+- [x] Cronologia com perfil, horário, intervalos e lacunas.
+- [x] Tempo de resposta, tempo até recebimento, retenção no destino, km, lastro documental.
+- [x] Gargalos por transição e por destino; uso da frota por veículo.
+- [x] Exportação CSV (trilha de auditoria e resumo).
+- [x] Mapa esquemático (não-GPS); Leaflet local; CSP.
+- [ ] Período/data como filtro (requer conjunto com vários dias).
+- [ ] Página de origem/regulação para abrir solicitação e designar veículo.
+- [ ] Relatório imprimível para prestação de contas.
 
-**Aceite:** visitante entende que nenhuma movimentação operacional está sendo monitorada. Relacionada à [#2](https://github.com/joyceradis/MOOV/issues/2).
+## Gate de decisão de produto — [#4](https://github.com/joyceradis/MOOV/issues/4)
+Sem decisão explícita e responsáveis institucionais, **não** implementar servidor com dados reais, autenticação em produção ou integrações.
 
-## Etapa B — Manutenibilidade e segurança demonstrativa (P1)
+## Etapa C — Operacional (somente após o gate)
+1. Requisitos com gestores do contrato, regulação, equipes e destinos; regras de faturamento do contrato.
+2. API + banco com trilha de eventos append-only; autenticação e RBAC; links da ponta com token efêmero.
+3. PWA com fila offline e resolução de conflitos.
+4. LGPD: base legal, minimização, DPIA, retenção; segurança e observabilidade.
+5. Homologação em ambiente isolado; piloto somente após contratação própria.
 
-- [ ] README, arquitetura e política de segurança coerentes com o código.
-- [ ] Testes estáticos de sintaxe e smoke test de dados/links.
-- [ ] Revisar módulos JS históricos antes de remoção.
-- [ ] Avaliar integridade da carga CDN, rotas de fallback e acessibilidade.
-- [ ] Avaliar revisão obrigatória antes de mudanças na branch de publicação.
-
-**Aceite:** testes reproduzíveis detectam regressões essenciais; nenhuma promessa de segurança ou capacidade não implementada. Relacionada à [#3](https://github.com/joyceradis/MOOV/issues/3).
-
-## Gate de decisão de produto
-
-Escolher formalmente entre (a) demonstração de portfólio e (b) produto operacional. **Sem decisão, não implementar API, GPS, autenticação, dados clínicos ou integração institucional.** Ver [#4](https://github.com/joyceradis/MOOV/issues/4).
-
-## Hipótese futura, apenas se for escolhido produto operacional
-
-1. Descoberta de requisitos com responsáveis por regulação, origem, transporte e destino.
-2. Contrato de microeventos e estados, segregando fluxo municipal e SAMU.
-3. Avaliação jurídica/LGPD, base legal, minimização de dados e responsabilidades.
-4. Arquitetura autorizada (auth/RBAC, banco, auditoria, observabilidade, retenção).
-5. Homologação em ambiente isolado, testes de confiabilidade e segurança.
-6. Piloto institucional **somente após aprovação e contratação próprias**.
-
-**Fora do escopo atual:** rastreamento em tempo real, despacho, decisões clínicas ou automação de regulação.
+**Fora do escopo:** rastreamento em tempo real, despacho, decisão clínica, automação de regulação.

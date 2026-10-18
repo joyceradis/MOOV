@@ -3,60 +3,76 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MOOV | Microformulário Destino</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <title>MOOV | Página do destino</title>
   <link rel="stylesheet" href="../css/styles.css" />
 </head>
 
-<body class="form-body">
+<body class="form-body" data-profile="destino">
   <main class="form-shell">
-    <p class="demo-notice" role="note"><strong>Simulação com dados fictícios.</strong> Nenhum dado é enviado ou armazenado. Não preencher com dados reais.</p>
+    <p class="demo-notice" role="note"><strong>Simulação com dados fictícios.</strong> O registro fica apenas neste navegador; nenhum dado é enviado a servidor. Não preencher com dados reais.</p>
     <header>
       <a class="brand-mark" href="../index.html">MOOV</a>
-      <p style="color: var(--muted)">
-        Demonstração de interface; nenhuma chegada ou aceite é registrado.
-      </p>
-      <h1>Microcheck da unidade de destino</h1>
+      <p class="muted">Confirmação de recebimento na unidade de destino.</p>
+      <h1>Registro da unidade de destino</h1>
     </header>
 
     <section class="panel form-card">
-      <form id="form">
-        <label>Status no destino</label>
-        <select required>
-          <option value="">Selecione</option>
-          <option>Chegou ao destino</option>
-          <option>Aguardando recebimento</option>
-          <option>Recebido pela equipe</option>
-          <option>Recebimento pendente</option>
-        </select>
-
-        <label>Setor de recebimento</label>
-        <input placeholder="Ex.: Pronto-socorro / sala vermelha" />
-
-        <label class="check-item">
-          <input type="checkbox" required />
-          Confirmo chegada da equipe/veículo.
-        </label>
-
-        <label>Observação operacional mínima</label>
-        <textarea placeholder="Ex.: aguardando leito, aguardando médico..."></textarea>
-
+      <form id="codeLookup" hidden>
+        <label for="codeInput">Código da solicitação</label>
+        <input id="codeInput" autocomplete="off" autocapitalize="characters" placeholder="Ex.: SOL-260506-P01-001" required />
+        <p id="lookupMessage" class="muted" role="status"></p>
         <div class="form-actions">
-          <button type="submit">Registrar microevento</button>
+          <button type="submit">Abrir solicitação</button>
           <a href="../index.html">Voltar ao painel</a>
         </div>
-
-        <div class="success" id="success">
-          Simulação concluída. Nenhum dado é enviado ou armazenado; o painel não foi atualizado.
-        </div>
       </form>
+
+      <div id="requestView" hidden>
+        <div class="transfer-summary">
+          <div><small>Código da solicitação</small><strong id="sumCode">--</strong></div>
+          <div><small>Regulação</small><strong id="sumRegulation">--</strong></div>
+          <div><small>Origem</small><strong id="sumOrigin">--</strong></div>
+          <div><small>Destino</small><strong id="sumDestination">--</strong></div>
+          <div><small>Veículo</small><strong id="sumVehicle">--</strong></div>
+          <div><small>Última etapa</small><strong id="sumStage">--</strong></div>
+        </div>
+
+        <div class="privacy-note">
+          Esta página não exibe nem solicita nome, CPF, CNS, diagnóstico, CID, exames ou prontuário.
+        </div>
+
+        <p id="blockedMessage" class="blocked-message" role="status" hidden></p>
+
+        <form id="stageForm" hidden>
+          <p class="next-stage">Etapa a registrar: <strong id="nextStage">--</strong></p>
+          <label for="sectorField">Setor de recebimento</label>
+          <input id="sectorField" maxlength="60" data-note-label="Setor" placeholder="Ex.: Pronto-socorro" />
+
+          <label class="check-item">
+            <input type="checkbox" id="receivedCheck" required />
+            Confirmo o recebimento pela equipe da unidade.
+          </label>
+
+          <label for="noteField">Observação operacional mínima</label>
+          <textarea id="noteField" maxlength="120" data-note-label="Obs" placeholder="Ex.: aguardando leito, aguardando médico..."></textarea>
+          <small class="muted">Não inclua dados de paciente. Máx. 120 caracteres.</small>
+
+          <div class="form-actions">
+            <button type="submit">Registrar etapa</button>
+            <a href="../index.html">Voltar ao painel</a>
+          </div>
+        </form>
+
+        <div class="success" id="success" role="status" aria-live="polite"></div>
+      </div>
     </section>
   </main>
 
-  <script>
-    document.getElementById("form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      document.getElementById("success").classList.add("show");
-    });
-  </script>
+  <script src="../js/data.js"></script>
+  <script src="../js/metrics.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="../js/registro.js"></script>
 </body>
 </html>
