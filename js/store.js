@@ -6,7 +6,7 @@
   const CLOCK_KEY = "moov-demo-clock-v1";
   const MAX_NOTE = 300;
   const AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-  const LOCAL_CODE = /^SOL-\d{6}-L(\d{3,})$/;
+  const LOCAL_CODE = /^SOL-\d{6}-L(\d{3,6})$/; // até 999.999 solicitações locais
   const REGULATION = /^([A-Z0-9-]{3,30}|não informado)$/;
   // Veículos da frota municipal (MOOV_DATA é carregado antes deste arquivo).
   const MUNICIPAL_FLEET = () => new Set(
@@ -127,19 +127,39 @@
       .filter(Boolean)
       .map(Number);
     const next = (used.length ? Math.max(...used) : 0) + 1;
+    if (next > 999999) {
+      return { ok: false, error: "Limite de solicitações locais da demonstração atingido; apague os registros locais." };
+    }
     startClock();
     const at = demoNow(data);
     const code = `SOL-${at.slice(2, 4)}${at.slice(5, 7)}${at.slice(8, 10)}-L${String(next).padStart(3, "0")}`;
     const request = { code, regulationCode: regulation || "não informado", originId, destinationId };
     const event = { code, key: "solicitada", at, profile: "regulacao" };
-    // Grava o evento primeiro; se a solicitação não puder ser gravada, desfaz o evento.
-    const previousEvents = loadEvents();
-    if (!writeJson(EVENTS_KEY, [...previousEvents, event])) {
+    // Grava o evento primeiro; se a solicitação não puder ser gravada, restaura o texto anterior exato.
+    let previousRaw = null;
+    try {
+      previousRaw = global.localStorage.getItem(EVENTS_KEY);
+    } catch {
+      // Sem leitura, a gravação abaixo também falha e nada é registrado.
+    }
+    if (!writeJson(EVENTS_KEY, [...loadEvents(), event])) {
       return { ok: false, error: "Este navegador bloqueou o armazenamento local; nada foi registrado." };
     }
     if (!writeJson(REQUESTS_KEY, [...stored, request])) {
-      writeJson(EVENTS_KEY, previousEvents);
-      return { ok: false, error: "Este navegador bloqueou o armazenamento local; nada foi registrado." };
+      let restored = false;
+      try {
+        if (previousRaw === null) global.localStorage.removeItem(EVENTS_KEY);
+        else global.localStorage.setItem(EVENTS_KEY, previousRaw);
+        restored = true;
+      } catch {
+        restored = false;
+      }
+      return {
+        ok: false,
+        error: restored
+          ? "Este navegador bloqueou o armazenamento local; nada foi registrado."
+          : "Armazenamento local falhou no meio da gravação; apague os registros locais da demonstração."
+      };
     }
     return { ok: true, request, event };
   }
