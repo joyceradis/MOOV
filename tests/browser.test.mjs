@@ -49,8 +49,15 @@ after(async () => {
 async function newContext({ viewport, blockLeaflet = false } = {}) {
   const context = await browser.newContext({ viewport: viewport || { width: 1366, height: 900 }, acceptDownloads: true });
   const external = [];
-  await context.route(url => !url.href.startsWith(baseUrl), route => {
-    external.push(route.request().url());
+  const tiles = [];
+  await context.route(url => !url.href.startsWith(baseUrl), async route => {
+    const request = route.request();
+    external.push(request.url());
+    // Tiles do OSM recebem uma imagem local, para verificar CSP, carregamento e Referer sem rede.
+    if (/^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(request.url())) {
+      tiles.push({ url: request.url(), referer: (await request.allHeaders()).referer || null });
+      return route.fulfill({ body: await readFile(join(root, 'vendor/leaflet-1.9.4/images/layers.png')), contentType: 'image/png' });
+    }
     return route.abort();
   });
   if (blockLeaflet) {
@@ -60,7 +67,7 @@ async function newContext({ viewport, blockLeaflet = false } = {}) {
     window.__csp = [];
     document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
   });
-  return { context, external };
+  return { context, external, tiles };
 }
 
 async function open(context, path) {
@@ -71,7 +78,7 @@ async function open(context, path) {
   return { page, errors };
 }
 
-const nonTileRequests = list => list.filter(url => !/basemaps\.cartocdn\.com/.test(url));
+const nonTileRequests = list => list.filter(url => !/^https:\/\/tile\.openstreetmap\.org\//.test(url));
 
 async function assertText(page, selector, expected) {
   await page.waitForFunction(
@@ -84,9 +91,17 @@ async function assertText(page, selector, expected) {
 }
 
 test('painel: carrega sem erros nem violação de CSP; mapa esquemático com Leaflet local', async () => {
-  const { context, external } = await newContext();
+  const { context, external, tiles } = await newContext();
   const { page, errors } = await open(context, '/index.html');
   await page.waitForSelector('#map.leaflet-container');
+  // Fundo do mapa: tiles do OpenStreetMap (sem chave), carregados e aceitos pela CSP,
+  // com Referer só da origem (política de uso do OSM); atribuição visível.
+  await page.waitForSelector('.leaflet-tile-loaded');
+  assert.ok(tiles.length > 0);
+  for (const tile of tiles) assert.equal(tile.referer, `${baseUrl}/`, tile.url);
+  assert.equal(await page.getAttribute('.leaflet-tile', 'referrerpolicy'), 'strict-origin-when-cross-origin');
+  assert.match(await page.textContent('.leaflet-control-attribution'), /colaboradores do OpenStreetMap/);
+  assert.ok(external.every(url => !/cartocdn/.test(url)));
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.leaflet-pane')).position), 'absolute');
   // Marcadores esquemáticos: só solicitações com veículo e não liberadas (5 no conjunto).
   assert.equal(await page.locator('.vehicle-wrap').count(), 5);

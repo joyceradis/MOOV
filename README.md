@@ -33,7 +33,7 @@ Parâmetros de alerta (retenção, tempo sem veículo) ficam em `MOOV_DATA.confi
 python3 -m http.server 8080   # http://localhost:8080
 ```
 
-Sem build. Leaflet 1.9.4 é versionado em `vendor/`; apenas os tiles do mapa (CARTO/OSM) vêm da internet. Sem rede, o painel funciona sem o fundo do mapa.
+Sem build. Leaflet 1.9.4 é versionado em `vendor/`; apenas os tiles do mapa (OpenStreetMap, sem chave de API) vêm da internet. Sem rede, o painel funciona sem o fundo do mapa.
 
 ## Testes
 

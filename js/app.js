@@ -236,9 +236,13 @@ function initMap() {
   }
   state.map = L.map("map", { zoomControl: false }).setView([-20.3155, -40.3128], 12);
   L.control.zoom({ position: "bottomright" }).addTo(state.map);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  // Tiles do OpenStreetMap (sem chave). A política de uso do OSM exige atribuição e Referer válido:
+  // as páginas usam no-referrer, então só as imagens de tile enviam a origem.
+  // O visual escuro vem de filtro CSS em .leaflet-tile-pane.
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    referrerPolicy: "strict-origin-when-cross-origin",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a>'
   }).addTo(state.map);
 
   state.map.fitBounds(L.latLngBounds(MOOV_DATA.units.map(u => u.coords)), { padding: [60, 60] });
