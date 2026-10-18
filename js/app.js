@@ -184,6 +184,10 @@ function filteredTransfers() {
 }
 
 function drawTransfers(transfers) {
+  if (!map) {
+    return;
+  }
+
   clearMapLayers();
 
   transfers.forEach(item => {
@@ -371,12 +375,12 @@ async function initApp() {
   ELEMENTS.timelineCode = document.getElementById("timelineCode");
   ELEMENTS.bottleneckList = document.getElementById("bottleneckList");
 
-  if (!(await ensureLeaflet())) {
-    return;
+  // Sem Leaflet, o painel segue funcional sem o mapa: KPIs, linha do tempo e gargalos não dependem dele.
+  if (await ensureLeaflet()) {
+    initMap();
+    drawUnits();
   }
 
-  initMap();
-  drawUnits();
   renderBottlenecks();
   bindControls();
   refreshDashboard();
