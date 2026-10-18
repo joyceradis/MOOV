@@ -15,6 +15,12 @@ Nenhuma versão é homologada para uso operacional. Não use com dados de pacien
 - Exportação CSV neutraliza fórmulas de planilha.
 - CI com Actions fixadas por SHA e `permissions: contents: read`.
 
+## Limites conhecidos
+
+- A CSP por `<meta>` não cobre `frame-ancestors`: a página pode ser embutida em iframe de terceiros. O GitHub Pages não permite definir cabeçalhos HTTP.
+- No GitHub Pages, a origem `joyceradis.github.io` é compartilhada com os demais repositórios publicados da conta: eles podem ler e alterar o `localStorage` do MOOV e manipular suas páginas. Registros locais não têm integridade nem autoria. O painel descarta registros malformados, mas isso não é controle de acesso.
+- Um piloto real exige domínio próprio, cabeçalhos HTTP (`frame-ancestors 'none'`, HSTS) e backend.
+
 ## Reportar vulnerabilidades
 
 Não publique em issues públicas dados pessoais, credenciais ou passos exploráveis sensíveis. Use **Report a vulnerability** na aba Security do repositório, se habilitado; caso contrário, peça à mantenedora um canal privado. Não há prazo de resposta garantido nem programa de recompensas.

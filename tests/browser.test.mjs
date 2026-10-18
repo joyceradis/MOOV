@@ -243,6 +243,33 @@ test('formulário inválido não registra', async () => {
   await context.close();
 });
 
+test('localStorage envenenado (mesma origem) não derruba painel nem páginas da ponta', async () => {
+  const { context } = await newContext();
+  await context.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    const code = 'SOL-260506-P01-001';
+    localStorage.setItem('moov-demo-events-v1', JSON.stringify([
+      { code, key: 'constructor', at: '2026-05-06T09:00' },
+      { code, key: '__proto__', at: '2026-05-06T09:00' },
+      { code, key: 'chegada_destino', at: '2026-05-06T<img src=x>' },
+      { code, key: 'chegada_destino', at: '2026-05-06T09:01', km: 'abc' }
+    ]));
+    localStorage.setItem('moov-demo-clock-v1', '-1e300');
+  });
+  const { page, errors } = await open(context, '/index.html');
+  await assertText(page, '#kpiTotal', '8');
+  await assertText(page, '#localCount', 'Nenhum registro local.');
+  await assertText(page, '#demoClock', '06/05 09:30');
+  await page.click('[data-select="SOL-260506-P01-001"]');
+  assert.equal(await page.locator('#timeline li.done').count(), 5);
+  assert.equal(await page.locator('#timeline img').count(), 0);
+  const { page: driver } = await open(context, '/pages/motorista.html?codigo=SOL-260506-P01-001');
+  await assertText(driver, '#nextStage', 'Chegada ao destino');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 test('exportação CSV da trilha de auditoria e do resumo', async () => {
   const { context } = await newContext();
   const { page } = await open(context, '/index.html');

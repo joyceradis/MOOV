@@ -53,7 +53,7 @@
       .filter(event => event.code === request.code && !base.some(b => b.key === event.key))
       .map(event => ({ ...event, source: "registro local" }));
     return [...base, ...local]
-      .filter(event => event.key in STAGE_INDEX)
+      .filter(event => Object.hasOwn(STAGE_INDEX, event.key))
       .sort((a, b) => STAGE_INDEX[a.key] - STAGE_INDEX[b.key]);
   }
 

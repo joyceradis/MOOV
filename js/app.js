@@ -154,7 +154,7 @@ function renderSelected(row) {
     const delta = i ? M.minutesBetween(row.events[i - 1].at, event.at) : null;
     return `
       <li class="done">
-        <time datetime="${escapeHtml(event.at)}">${formatTime(event.at)}</time>
+        <time datetime="${escapeHtml(event.at)}">${escapeHtml(formatTime(event.at))}</time>
         <strong>${escapeHtml(stage.label)}</strong>
         <span>${escapeHtml(stage.profile)} · ${escapeHtml(event.source)}${Number.isFinite(event.km) ? ` · km ${event.km}` : ""}${delta !== null ? ` · +${formatMin(delta)}` : ""}</span>
         ${event.note ? `<em>${escapeHtml(event.note)}</em>` : ""}

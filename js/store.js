@@ -4,6 +4,7 @@
   const EVENTS_KEY = "moov-demo-events-v1";
   const CLOCK_KEY = "moov-demo-clock-v1";
   const MAX_NOTE = 200;
+  const AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
   function readJson(key, fallback) {
     try {
@@ -24,8 +25,14 @@
   }
 
   function loadEvents() {
+    // Descarta registros malformados (o localStorage é compartilhado com outras páginas da mesma origem).
     const list = readJson(EVENTS_KEY, []);
-    return Array.isArray(list) ? list.filter(e => e && typeof e.code === "string" && typeof e.key === "string") : [];
+    return Array.isArray(list)
+      ? list.filter(e => e && typeof e.code === "string" && Object.hasOwn(MOOV_METRICS.STAGE_INDEX, e.key) &&
+          typeof e.at === "string" && AT_PATTERN.test(e.at) &&
+          (e.km === undefined || Number.isInteger(e.km)) &&
+          (e.note === undefined || (typeof e.note === "string" && e.note.length <= MAX_NOTE)))
+      : [];
   }
 
   // Relógio da demonstração: parte de MOOV_DATA.referenceTime e avança em tempo real
@@ -33,7 +40,7 @@
   function demoNow(data) {
     const startedAt = readJson(CLOCK_KEY, null);
     const base = MOOV_METRICS.toMinutes(data.referenceTime);
-    if (!Number.isFinite(startedAt)) {
+    if (!Number.isFinite(startedAt) || startedAt <= 0 || startedAt > Date.now()) {
       return data.referenceTime;
     }
     const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
