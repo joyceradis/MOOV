@@ -3,8 +3,8 @@
 (function (global) {
   // Etapas da solicitação, em ordem. "profile" indica quem registra a etapa.
   const STAGES = [
-    { key: "solicitada", label: "Solicitada", profile: "Origem/Regulação" },
-    { key: "designada", label: "Veículo designado", profile: "Regulação/Central" },
+    { key: "solicitada", label: "Solicitada", profile: "Regulação" },
+    { key: "designada", label: "Veículo designado", profile: "Regulação" },
     { key: "chegada_origem", label: "Chegada à origem", profile: "Motorista" },
     { key: "embarque", label: "Embarque", profile: "Equipe" },
     { key: "saida_origem", label: "Saída da origem", profile: "Motorista", requiresKm: true },
@@ -17,6 +17,7 @@
 
   // Etapas que cada página da ponta pode registrar.
   const PROFILE_STAGES = {
+    regulacao: ["solicitada", "designada"],
     motorista: ["chegada_origem", "saida_origem", "chegada_destino", "liberado"],
     enfermagem: ["embarque"],
     destino: ["recebido"]

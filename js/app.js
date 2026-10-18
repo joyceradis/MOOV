@@ -36,7 +36,7 @@ function flowLabel(flowType) {
 function computeAll() {
   const local = S.loadEvents();
   const now = S.demoNow(MOOV_DATA);
-  const rows = MOOV_DATA.requests.map(request => {
+  const rows = S.allRequests(MOOV_DATA, local).map(request => {
     const events = M.eventsFor(request, local);
     return { request, events, summary: M.summarize(request, events, now, MOOV_DATA.config) };
   });
@@ -89,8 +89,8 @@ function updateKPIs(rows) {
 
 // ---------- tabela de solicitações ----------
 
-function renderRequestTable(rows) {
-  ELEMENTS.requestCount.textContent = `${rows.length} de ${MOOV_DATA.requests.length}`;
+function renderRequestTable(rows, total) {
+  ELEMENTS.requestCount.textContent = `${rows.length} de ${total}`;
   const body = ELEMENTS.requestTable.querySelector("tbody");
   if (!rows.length) {
     body.innerHTML = `<tr><td colspan="9" class="muted">Nenhuma solicitação no recorte filtrado.</td></tr>`;
@@ -396,7 +396,7 @@ function refreshDashboard() {
   ELEMENTS.demoClock.textContent = formatTime(all.now);
   ELEMENTS.localCount.textContent = all.localCount ? `${all.localCount} registro(s) local(is) neste navegador.` : "Nenhum registro local.";
   updateKPIs(rows);
-  renderRequestTable(rows);
+  renderRequestTable(rows, all.rows.length);
   renderBottlenecks(rows);
   renderFleet(all);
   drawMap(rows, all);

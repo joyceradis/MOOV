@@ -17,6 +17,9 @@ Ferramenta de apoio à **gestão** (pública ou privada) de frotas de ambulânci
 - Relatório para impressão/PDF com aviso de dados fictícios, recorte aplicado, relógio, indicadores, tabela, gargalos e frota.
 - Separação de fluxos: frota municipal contratada × SAMU 192 (identificado, fora da frota e das páginas de registro).
 
+**Página da regulação (`pages/regulacao.html`)**
+- Abre solicitação com código novo e designa veículo. Só aparece veículo municipal sem atendimento em aberto: ambulância retida no destino não fica disponível, e assim o efeito da retenção sobre a frota aparece no fluxo.
+
 **Páginas da ponta (`pages/*.html?codigo=<código>`)**
 - Motorista (chegada à origem, saída com km, chegada com km, liberação), equipe (embarque) e destino (recebimento).
 - Abrem pelo código já estabelecido; exibem só dados logísticos; aceitam **apenas a próxima etapa** do fluxo e do perfil; validam km.
@@ -51,12 +54,13 @@ A CI (`.github/workflows/static-audit.yml`) roda os três em cada PR. CI verde n
 
 ```text
 index.html               painel da gestão
-pages/                   páginas da ponta (motorista, enfermagem, destino)
+pages/                   regulação e páginas da ponta (motorista, enfermagem, destino)
 js/data.js               conjunto fictício (unidades, frota, solicitações, parâmetros)
 js/metrics.js            cálculos puros (tempos, retenção, lastro, frota, CSV)
 js/store.js              registro local da demonstração + relógio da demonstração
 js/app.js                painel
 js/registro.js           páginas da ponta
+js/regulacao.js          página da regulação
 css/styles.css           estilos
 vendor/leaflet-1.9.4/    Leaflet (BSD-2-Clause)
 docs/arquitetura.md      arquitetura e limites

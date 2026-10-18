@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 const read = file => readFileSync(new URL(file, root), 'utf8');
-const PAGES = ['index.html', 'pages/motorista.html', 'pages/enfermagem.html', 'pages/destino.html'];
+const PAGES = ['index.html', 'pages/motorista.html', 'pages/enfermagem.html', 'pages/destino.html', 'pages/regulacao.html'];
 const notice = html => html.match(/<p class="demo-notice" role="note">([\s\S]*?)<\/p>/);
 
 test('dashboard carrega os módulos ativos e exibe o aviso de dados simulados', () => {
@@ -20,7 +20,7 @@ test('dashboard carrega os módulos ativos e exibe o aviso de dados simulados', 
 });
 
 test('páginas da ponta declaram simulação e armazenamento apenas local', () => {
-  for (const file of ['motorista', 'enfermagem', 'destino']) {
+  for (const file of ['motorista', 'enfermagem', 'destino', 'regulacao']) {
     const html = read(`pages/${file}.html`);
     const n = notice(html);
     assert.ok(n, `${file}: aviso .demo-notice`);
