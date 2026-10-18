@@ -310,10 +310,15 @@ test('relatório para impressão: cabeçalho com recorte, aviso e KPIs; mapa e c
 
   await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
   const header = (await page.textContent('#printHeader')).replace(/\s+/g, ' ');
-  assert.match(header, /DEMONSTRAÇÃO · DADOS FICTÍCIOS/);
+  assert.match(await page.textContent('.print-notice'), /DEMONSTRAÇÃO · DADOS FICTÍCIOS/);
   assert.match(header, /fluxo Frota municipal \(contratada\) · etapa Todas · veículo Todos · destino HUCAM/);
   assert.match(header, /Relógio da demonstração: 06\/05 09:30/);
   assert.match(header, /Solicitações\s*2/);
+
+  // Segunda impressão com outro recorte: cabeçalho é refeito.
+  await page.selectOption('#destinationFilter', 'HINF');
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  assert.match((await page.textContent('#printHeader')).replace(/\s+/g, ' '), /destino Hospital Infantil \/ referência/);
 
   await page.emulateMedia({ media: 'print' });
   assert.ok(await page.locator('#printHeader').isVisible());
@@ -326,6 +331,16 @@ test('relatório para impressão: cabeçalho com recorte, aviso e KPIs; mapa e c
   assert.ok(pdf.length > 10000);
   assert.deepEqual(errors, []);
   assert.deepEqual(nonTileRequests(external), []);
+  await context.close();
+});
+
+test('relatório: aviso de dados fictícios sai na impressão mesmo sem o cabeçalho dinâmico', async () => {
+  const { context } = await newContext();
+  const { page } = await open(context, '/index.html');
+  await page.evaluate(() => { document.getElementById('printHeader').innerHTML = ''; });
+  await page.emulateMedia({ media: 'print' });
+  assert.ok(await page.locator('.print-notice').isVisible());
+  assert.match(await page.textContent('.print-notice'), /DEMONSTRAÇÃO · DADOS FICTÍCIOS/);
   await context.close();
 });
 
