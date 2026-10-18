@@ -14,6 +14,7 @@ Ferramenta de apoio à **gestão** (pública ou privada) de frotas de ambulânci
 - Cronologia da solicitação (horário, perfil, origem do registro, intervalo entre etapas) e lacunas explícitas.
 - Gargalos: transições mais lentas e retenção de veículos por destino. Uso da frota por veículo.
 - Exportação CSV da trilha de auditoria e do resumo por solicitação (protegida contra injeção de fórmulas).
+- Relatório para impressão/PDF com aviso de dados fictícios, recorte aplicado, relógio, indicadores, tabela, gargalos e frota.
 - Separação de fluxos: frota municipal contratada × SAMU 192 (identificado, fora da frota e das páginas de registro).
 
 **Páginas da ponta (`pages/*.html?codigo=<código>`)**

@@ -299,6 +299,36 @@ test('exportação CSV da trilha de auditoria e do resumo', async () => {
   await context.close();
 });
 
+test('relatório para impressão: cabeçalho com recorte, aviso e KPIs; mapa e controles ocultos', async () => {
+  const { context, external } = await newContext();
+  const { page, errors } = await open(context, '/index.html');
+  await page.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed += 1; }; });
+  await page.selectOption('#flowType', 'municipal');
+  await page.selectOption('#destinationFilter', 'HUCAM');
+  await page.click('#printReport');
+  assert.equal(await page.evaluate(() => window.__printed), 1);
+
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  const header = (await page.textContent('#printHeader')).replace(/\s+/g, ' ');
+  assert.match(header, /DEMONSTRAÇÃO · DADOS FICTÍCIOS/);
+  assert.match(header, /fluxo Frota municipal \(contratada\) · etapa Todas · veículo Todos · destino HUCAM/);
+  assert.match(header, /Relógio da demonstração: 06\/05 09:30/);
+  assert.match(header, /Solicitações\s*2/);
+
+  await page.emulateMedia({ media: 'print' });
+  assert.ok(await page.locator('#printHeader').isVisible());
+  for (const hidden of ['.sidebar', '.map-card', '#selectedTransfer', '#printReport']) {
+    assert.equal(await page.locator(hidden).isVisible(), false, hidden);
+  }
+  assert.ok(await page.locator('#requestTable').isVisible());
+  assert.ok(await page.locator('#fleetTable').isVisible());
+  const pdf = await page.pdf({ format: 'A4' });
+  assert.ok(pdf.length > 10000);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(nonTileRequests(external), []);
+  await context.close();
+});
+
 test('sem Leaflet: aviso e painel funcional, com seleção pela tabela', async () => {
   const { context } = await newContext({ blockLeaflet: true });
   const { page, errors } = await open(context, '/index.html');

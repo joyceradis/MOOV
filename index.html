@@ -108,6 +108,7 @@
     </aside>
 
     <main class="main-content" id="conteudo">
+      <section id="printHeader" class="print-only" aria-hidden="true"></section>
       <header class="topbar">
         <div>
           <span>Grande Vitória · conjunto fictício</span>
@@ -117,10 +118,11 @@
         <div class="topbar-actions">
           <button id="exportAudit" type="button">Exportar trilha de auditoria (CSV)</button>
           <button id="exportSummary" type="button" class="ghost-button">Exportar resumo por solicitação (CSV)</button>
+          <button id="printReport" type="button" class="ghost-button">Relatório para impressão / PDF</button>
         </div>
       </header>
 
-      <section class="map-card">
+      <section class="map-card no-print">
         <div id="map" role="region" aria-label="Mapa esquemático de origens e destinos das solicitações"></div>
         <p class="map-caption">
           Posição <strong>esquemática</strong>, definida pela última etapa registrada (origem, trajeto ou destino). Não é GPS.
@@ -128,7 +130,7 @@
         </p>
       </section>
 
-      <section class="panel selected-panel" id="selectedTransfer" aria-live="polite"></section>
+      <section class="panel selected-panel no-print" id="selectedTransfer" aria-live="polite"></section>
 
       <section class="panel">
         <div class="section-line">
@@ -160,7 +162,7 @@
       </section>
 
       <section class="content-grid">
-        <article class="panel">
+        <article class="panel no-print">
           <div class="section-line">
             <div>
               <span>Cronologia</span>
