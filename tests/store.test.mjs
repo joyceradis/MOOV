@@ -146,7 +146,70 @@ test('regulação: solicitações locais malformadas são descartadas', () => {
   items.set('moov-demo-requests-v1', JSON.stringify([
     { code: 'SOL-260506-L001', regulationCode: 'X', originId: 'HEVV', destinationId: 'HUCAM' },
     { code: '<b>', regulationCode: 'X', originId: 'PASP', destinationId: 'HEVV' },
-    { code: 'SOL-260506-L002', regulationCode: 'X', originId: 'PASP', destinationId: 'HEVV' }
+    { code: 'SOL-260506-L002', regulationCode: 'REG-1', originId: 'PASP', destinationId: 'HEVV' },
+    { code: 'SOL-260506-L003', regulationCode: '<script>', originId: 'PASP', destinationId: 'HEVV' },
+    { code: 'SOL-260506-L002', regulationCode: 'REG-2', originId: 'PASP', destinationId: 'HEVV' }
   ]));
   assert.deepEqual(JSON.parse(JSON.stringify(S.loadLocalRequests(DATA).map(r => r.code))), ['SOL-260506-L002']);
+});
+
+test('regulação: código nunca reaproveita número com histórico (entrada descartada ou chave apagada)', () => {
+  const { S, DATA, items, plain } = setup();
+  // L001 inválido (origem errada) e L002 válido: a nova deve ser L003, não L002.
+  items.set('moov-demo-requests-v1', JSON.stringify([
+    { code: 'SOL-260506-L001', regulationCode: 'REG-1', originId: 'HEVV', destinationId: 'HUCAM' },
+    { code: 'SOL-260506-L002', regulationCode: 'REG-2', originId: 'PASP', destinationId: 'HEVV' }
+  ]));
+  assert.equal(plain(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' })).request.code, 'SOL-260506-L003');
+  // A entrada desconhecida é preservada ao regravar.
+  assert.equal(JSON.parse(items.get('moov-demo-requests-v1')).length, 3);
+  // Chave de solicitações apagada, eventos mantidos: não recria L00x com eventos antigos.
+  items.delete('moov-demo-requests-v1');
+  assert.equal(plain(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' })).request.code, 'SOL-260506-L004');
+});
+
+test('regulação: designação local envenenada (SAMU, inexistente, sem veículo) é descartada', () => {
+  const { S, DATA, items, plain } = setup();
+  const P06 = 'SOL-260506-P03-006';
+  items.set('moov-demo-events-v1', JSON.stringify([
+    { code: P06, key: 'designada', at: '2026-05-06T09:20', vehicleId: 'USB-12' },
+    { code: P06, key: 'designada', at: '2026-05-06T09:20', vehicleId: 'GHOST' },
+    { code: P06, key: 'designada', at: '2026-05-06T09:20' },
+    { code: P06, key: 'chegada_origem', at: '2026-05-06T09:25', vehicleId: 'PMV-05' }
+  ]));
+  assert.deepEqual(plain(S.loadEvents()), []);
+  assert.equal(S.findRequest(DATA, P06).vehicleId, null);
+});
+
+test('regulação: veículo SAMU livre nunca aparece como disponível para a frota municipal', () => {
+  const { S, DATA, plain } = setup();
+  DATA.requests = DATA.requests.filter(r => r.flowType !== 'samu'); // libera USB-12 e USA-04
+  assert.deepEqual(plain(S.availableVehicles(DATA).map(v => v.id)), ['PMV-05']);
+});
+
+test('regulação: veículo já vinculado à própria solicitação não se bloqueia', () => {
+  const { record, DATA } = setup();
+  DATA.requests.find(r => r.code === 'SOL-260506-P03-006').vehicleId = 'PMV-05';
+  assert.equal(record({ code: 'SOL-260506-P03-006', key: 'designada', profile: 'regulacao', vehicleId: 'PMV-05' }).ok, true);
+});
+
+test('regulação: resetDemo apaga também as solicitações locais', () => {
+  const { S, DATA, items } = setup();
+  S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' });
+  S.resetDemo();
+  assert.equal(items.size, 0);
+});
+
+test('regulação: falha ao gravar a solicitação desfaz o evento já gravado', () => {
+  const { S, DATA, items, plain } = setup();
+  const original = items.set.bind(items);
+  // localStorage falso: falha só ao gravar a chave de solicitações.
+  const ctxStorage = { fail: true };
+  items.set = (key, value) => {
+    if (key === 'moov-demo-requests-v1' && ctxStorage.fail) throw new Error('quota');
+    return original(key, value);
+  };
+  const result = plain(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV' }));
+  assert.equal(result.ok, false);
+  assert.deepEqual(plain(S.loadEvents()), []);
 });

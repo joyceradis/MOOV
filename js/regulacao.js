@@ -63,6 +63,7 @@
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = "Designar";
+      button.setAttribute("aria-label", `Designar veículo para ${request.code}`);
       button.disabled = !available.length;
       button.addEventListener("click", () => assign(request.code, select.value));
       li.append(title, route, label, select, button);
@@ -76,6 +77,8 @@
       ? `${vehicleId} designado para ${code} às ${result.event.at.slice(11, 16)} (relógio da demonstração), apenas neste navegador.`
       : `Não registrado: ${result.error}`);
     renderPending();
+    // A lista é recriada; o foco vai para o resultado em vez de cair no body.
+    $("#assignResult").focus();
   }
 
   function frontLinks(code) {

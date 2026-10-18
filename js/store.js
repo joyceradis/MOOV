@@ -6,6 +6,12 @@
   const CLOCK_KEY = "moov-demo-clock-v1";
   const MAX_NOTE = 300;
   const AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+  const LOCAL_CODE = /^SOL-\d{6}-L(\d{3,})$/;
+  const REGULATION = /^([A-Z0-9-]{3,30}|não informado)$/;
+  // Veículos da frota municipal (MOOV_DATA é carregado antes deste arquivo).
+  const MUNICIPAL_FLEET = () => new Set(
+    (typeof MOOV_DATA !== "undefined" ? MOOV_DATA.fleet : []).filter(v => v.flowType === "municipal").map(v => v.id)
+  );
 
   function readJson(key, fallback) {
     try {
@@ -32,7 +38,7 @@
       ? list.filter(e => e && typeof e.code === "string" && Object.hasOwn(MOOV_METRICS.STAGE_INDEX, e.key) &&
           typeof e.at === "string" && AT_PATTERN.test(e.at) &&
           (e.km === undefined || Number.isInteger(e.km)) &&
-          (e.vehicleId === undefined || typeof e.vehicleId === "string") &&
+          (e.key === "designada" ? MUNICIPAL_FLEET().has(e.vehicleId) : e.vehicleId === undefined) &&
           (e.note === undefined || (typeof e.note === "string" && e.note.length <= MAX_NOTE)))
       : [];
   }
@@ -54,8 +60,10 @@
     const list = readJson(REQUESTS_KEY, []);
     const unit = (id, type) => data.units.some(u => u.id === id && u.type === type);
     return Array.isArray(list)
-      ? list.filter(r => r && typeof r.code === "string" && /^SOL-\d{6}-L\d{3}$/.test(r.code) &&
-          typeof r.regulationCode === "string" && unit(r.originId, "origem") && unit(r.destinationId, "destino"))
+      ? list.filter((r, i) => r && typeof r.code === "string" && LOCAL_CODE.test(r.code) &&
+          typeof r.regulationCode === "string" && REGULATION.test(r.regulationCode) &&
+          unit(r.originId, "origem") && unit(r.destinationId, "destino") &&
+          list.findIndex(o => o && o.code === r.code) === i)
       : [];
   }
 
@@ -76,10 +84,10 @@
   }
 
   // Veículo municipal está ocupado se tem solicitação designada ainda não liberada (inclui retido no destino).
-  function busyVehicles(data, events = loadEvents()) {
+  function busyVehicles(data, events = loadEvents(), exceptCode = null) {
     const busy = new Set();
     for (const request of allRequests(data, events)) {
-      if (!request.vehicleId) continue;
+      if (!request.vehicleId || request.code === exceptCode) continue;
       const list = MOOV_METRICS.eventsFor(request, events);
       const last = list.length ? list[list.length - 1].key : null;
       if (last && last !== "liberado") busy.add(request.vehicleId);
@@ -109,13 +117,28 @@
     if (regulation && !/^[A-Z0-9-]{3,30}$/.test(regulation)) {
       return { ok: false, error: "Código de regulação inválido (letras, números e hífen)." };
     }
-    const local = loadLocalRequests(data);
+    // Próximo número: maior já usado em solicitações OU eventos (mesmo descartados), para nunca
+    // reaproveitar um código que já tenha histórico.
+    const raw = readJson(REQUESTS_KEY, []);
+    const stored = Array.isArray(raw) ? raw : [];
+    const rawEvents = readJson(EVENTS_KEY, []);
+    const used = [...stored, ...(Array.isArray(rawEvents) ? rawEvents : [])]
+      .map(item => LOCAL_CODE.exec(item && typeof item.code === "string" ? item.code : "")?.[1])
+      .filter(Boolean)
+      .map(Number);
+    const next = (used.length ? Math.max(...used) : 0) + 1;
     startClock();
     const at = demoNow(data);
-    const code = `SOL-${at.slice(2, 4)}${at.slice(5, 7)}${at.slice(8, 10)}-L${String(local.length + 1).padStart(3, "0")}`;
+    const code = `SOL-${at.slice(2, 4)}${at.slice(5, 7)}${at.slice(8, 10)}-L${String(next).padStart(3, "0")}`;
     const request = { code, regulationCode: regulation || "não informado", originId, destinationId };
     const event = { code, key: "solicitada", at, profile: "regulacao" };
-    if (!writeJson(REQUESTS_KEY, [...local, request]) || !writeJson(EVENTS_KEY, [...loadEvents(), event])) {
+    // Grava o evento primeiro; se a solicitação não puder ser gravada, desfaz o evento.
+    const previousEvents = loadEvents();
+    if (!writeJson(EVENTS_KEY, [...previousEvents, event])) {
+      return { ok: false, error: "Este navegador bloqueou o armazenamento local; nada foi registrado." };
+    }
+    if (!writeJson(REQUESTS_KEY, [...stored, request])) {
+      writeJson(EVENTS_KEY, previousEvents);
       return { ok: false, error: "Este navegador bloqueou o armazenamento local; nada foi registrado." };
     }
     return { ok: true, request, event };
@@ -151,7 +174,7 @@
       if (request.vehicleId && request.vehicleId !== vehicleId) {
         return { ok: false, error: `Solicitação já vinculada ao veículo ${request.vehicleId}.` };
       }
-      if (busyVehicles(data).has(vehicleId)) {
+      if (busyVehicles(data, loadEvents(), code).has(vehicleId)) {
         return { ok: false, error: `${vehicleId} está em atendimento ou retido no destino.` };
       }
     }
