@@ -1118,3 +1118,33 @@ textarea:focus-visible {
   .print-kpis b { font-size: 16px; }
   .print-small { font-size: 9px; color: var(--muted); }
 }
+
+/* ---------- Página da regulação ---------- */
+.form-section-title { margin: 0 0 6px; font-size: 18px; }
+.form-card + .form-card { margin-top: 18px; }
+.pending-list { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.pending-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-soft);
+}
+.pending-list li strong,
+.pending-list li span { grid-column: 1 / -1; }
+.pending-list li span { color: var(--muted); font-size: 13px; font-weight: 500; letter-spacing: normal; text-transform: none; }
+.pending-list select { min-width: 0; }
+.pending-list button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--cyan);
+  color: #04202a;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pending-list button:disabled { opacity: .5; cursor: not-allowed; }
+.topbar-actions a.ghost-button { display: inline-flex; align-items: center; }

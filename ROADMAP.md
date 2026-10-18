@@ -16,7 +16,7 @@
 - [x] Exportação CSV (trilha de auditoria e resumo).
 - [x] Mapa esquemático (não-GPS); Leaflet local; CSP.
 - [ ] Período/data como filtro (requer conjunto com vários dias).
-- [ ] Página de origem/regulação para abrir solicitação e designar veículo.
+- [x] Página da regulação: abrir solicitação (código `SOL-aammdd-Lnnn`) e designar veículo municipal disponível.
 - [x] Relatório imprimível (PDF pelo navegador) para prestação de contas.
 
 ## Gate de decisão de produto — [#4](https://github.com/joyceradis/MOOV/issues/4)

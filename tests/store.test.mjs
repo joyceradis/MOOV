@@ -107,3 +107,46 @@ test('resetDemo apaga registros e relógio', () => {
   S.resetDemo();
   assert.equal(items.size, 0);
 });
+
+test('regulação: só veículo municipal disponível pode ser designado (retido no destino conta como ocupado)', () => {
+  const { record, S, DATA, plain } = setup();
+  // PMV-03 retido no HUCAM, PMV-08 e PMV-11 em atendimento; PMV-05 livre.
+  assert.deepEqual(plain(S.availableVehicles(DATA).map(v => v.id)), ['PMV-05']);
+  const P06 = 'SOL-260506-P03-006';
+  assert.match(record({ code: P06, key: 'designada', profile: 'regulacao', vehicleId: 'PMV-03' }).error, /PMV-03 está em atendimento ou retido/);
+  assert.match(record({ code: P06, key: 'designada', profile: 'regulacao', vehicleId: 'USB-12' }).error, /frota municipal/);
+  assert.match(record({ code: P06, key: 'designada', profile: 'regulacao' }).error, /frota municipal/);
+  assert.match(record({ code: P06, key: 'designada', profile: 'motorista', vehicleId: 'PMV-05' }).error, /não permitida para este perfil/);
+  const ok = record({ code: P06, key: 'designada', profile: 'regulacao', vehicleId: 'PMV-05' });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.event.vehicleId, 'PMV-05');
+  assert.equal(S.findRequest(DATA, P06).vehicleId, 'PMV-05');
+  assert.deepEqual(plain(S.availableVehicles(DATA)), []);
+});
+
+test('regulação: abre solicitação local com código sequencial e valida unidades e código de regulação', () => {
+  const { S, DATA, plain } = setup();
+  assert.match(S.createRequest(DATA, { originId: 'HEVV', destinationId: 'HUCAM' }).error, /origem e uma de destino/);
+  assert.match(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV', regulationCode: '<x>' }).error, /regulação inválido/);
+  const first = plain(S.createRequest(DATA, { originId: 'PASP', destinationId: 'HEVV', regulationCode: 'reg-1' }));
+  assert.equal(first.request.code, 'SOL-260506-L001');
+  assert.equal(first.request.regulationCode, 'REG-1');
+  assert.deepEqual(first.event, { code: 'SOL-260506-L001', key: 'solicitada', at: '2026-05-06T09:30', profile: 'regulacao' });
+  const second = plain(S.createRequest(DATA, { originId: 'PAMAR', destinationId: 'HINF' }));
+  assert.equal(second.request.code, 'SOL-260506-L002');
+  assert.equal(second.request.regulationCode, 'não informado');
+  const local = S.findRequest(DATA, 'SOL-260506-L001');
+  assert.equal(local.flowType, 'municipal');
+  assert.equal(local.vehicleId, null);
+  assert.equal(S.allRequests(DATA).length, DATA.requests.length + 2);
+});
+
+test('regulação: solicitações locais malformadas são descartadas', () => {
+  const { S, DATA, items } = setup();
+  items.set('moov-demo-requests-v1', JSON.stringify([
+    { code: 'SOL-260506-L001', regulationCode: 'X', originId: 'HEVV', destinationId: 'HUCAM' },
+    { code: '<b>', regulationCode: 'X', originId: 'PASP', destinationId: 'HEVV' },
+    { code: 'SOL-260506-L002', regulationCode: 'X', originId: 'PASP', destinationId: 'HEVV' }
+  ]));
+  assert.deepEqual(JSON.parse(JSON.stringify(S.loadLocalRequests(DATA).map(r => r.code))), ['SOL-260506-L002']);
+});

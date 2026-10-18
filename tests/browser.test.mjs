@@ -216,6 +216,48 @@ test('fluxo completo: motorista e destino registram pelo código; painel em outr
   await context.close();
 });
 
+test('regulação: abre solicitação, designa veículo disponível e a ponta registra; painel acompanha', async () => {
+  const { context, external } = await newContext();
+  const { page: dash } = await open(context, '/index.html');
+  const { page: reg, errors } = await open(context, '/pages/regulacao.html');
+  await assertText(reg, '#availableSummary', 'Disponíveis agora: PMV-05.');
+  assert.equal(await reg.locator('#pendingList li[data-code="SOL-260506-P03-006"]').count(), 1);
+
+  await reg.selectOption('#originField', 'PASP');
+  await reg.selectOption('#destinationField', 'HEVV');
+  await reg.fill('#regulationField', 'reg-0506-1300');
+  await reg.click('#newRequest button[type="submit"]');
+  await reg.waitForSelector('#createResult.show:not(.error)');
+  assert.match(await reg.textContent('#createResult'), /Solicitação SOL-260506-L001 aberta às 09:30/);
+  assert.equal(await reg.getAttribute('#createResult a[href*="motorista"]', 'href'), './motorista.html?codigo=SOL-260506-L001');
+
+  const item = reg.locator('#pendingList li[data-code="SOL-260506-L001"]');
+  await item.locator('select').selectOption('PMV-05');
+  await item.locator('button').click();
+  await reg.waitForSelector('#assignResult.show:not(.error)');
+  assert.match(await reg.textContent('#assignResult'), /PMV-05 designado para SOL-260506-L001/);
+  await assertText(reg, '#availableSummary', 'Nenhum veículo municipal disponível no momento.');
+  assert.ok(await reg.locator('#pendingList li[data-code="SOL-260506-P03-006"] button').isDisabled());
+
+  // Painel em outra aba: nova solicitação com veículo e frota sem disponíveis.
+  await assertText(dash, '#requestCount', '9 de 9');
+  await dash.click('[data-select="SOL-260506-L001"]');
+  assert.match(await dash.textContent('#selectedTransfer'), /PMV-05/);
+  assert.match(await dash.textContent('#selectedTransfer'), /regulação REG-0506-1300/);
+  assert.equal(await dash.locator('#timeline li.done').count(), 2);
+  assert.match(await dash.textContent('#fleetTable'), /Em atendimento: SOL-260506-L001/);
+
+  const { page: driver } = await open(context, '/pages/motorista.html?codigo=SOL-260506-L001');
+  await assertText(driver, '#sumVehicle', 'PMV-05');
+  await assertText(driver, '#nextStage', 'Chegada à origem');
+
+  await dash.waitForTimeout(300);
+  assert.deepEqual(nonTileRequests(external), []);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(await reg.evaluate(() => window.__csp), []);
+  await context.close();
+});
+
 test('páginas da ponta: sem código pedem o código; código inexistente e SAMU são tratados', async () => {
   const { context } = await newContext();
   const { page } = await open(context, '/pages/motorista.html');
@@ -352,7 +394,7 @@ test('teclado: link de salto e seleção de código pela tabela', async () => {
 });
 
 test('layout móvel: sem rolagem horizontal no painel e nas páginas da ponta', async () => {
-  for (const path of ['/index.html', '/pages/motorista.html?codigo=SOL-260506-P01-001', '/pages/enfermagem.html', '/pages/destino.html?codigo=SOL-260506-P02-002']) {
+  for (const path of ['/index.html', '/pages/regulacao.html', '/pages/motorista.html?codigo=SOL-260506-P01-001', '/pages/enfermagem.html', '/pages/destino.html?codigo=SOL-260506-P02-002']) {
     const { context } = await newContext({ viewport: { width: 375, height: 812 } });
     const { page } = await open(context, path);
     await page.waitForLoadState('load');

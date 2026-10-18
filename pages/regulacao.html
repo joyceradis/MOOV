@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <title>MOOV | Página da regulação</title>
+  <link rel="stylesheet" href="../css/styles.css" />
+</head>
+
+<body class="form-body" data-profile="regulacao">
+  <main class="form-shell">
+    <p class="demo-notice" role="note"><strong>Simulação com dados fictícios.</strong> O registro fica apenas neste navegador; nenhum dado é enviado a servidor. Não preencher com dados reais.</p>
+    <header>
+      <a class="brand-mark" href="../index.html">MOOV</a>
+      <p class="muted">Abertura de solicitações e designação de veículo da frota municipal.</p>
+      <h1>Página da regulação</h1>
+    </header>
+
+    <section class="panel form-card" aria-labelledby="pendingTitle">
+      <h2 id="pendingTitle" class="form-section-title">Aguardando veículo</h2>
+      <p class="muted small">Só aparecem veículos municipais sem atendimento em aberto. Veículo retido no destino não fica disponível.</p>
+      <p id="availableSummary" class="muted" role="status"></p>
+      <ul id="pendingList" class="pending-list"></ul>
+      <div class="success" id="assignResult" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel form-card" aria-labelledby="newTitle">
+      <h2 id="newTitle" class="form-section-title">Nova solicitação</h2>
+      <form id="newRequest">
+        <label for="originField">Unidade de origem</label>
+        <select id="originField" required>
+          <option value="">Selecione</option>
+        </select>
+
+        <label for="destinationField">Unidade de destino</label>
+        <select id="destinationField" required>
+          <option value="">Selecione</option>
+        </select>
+
+        <label for="regulationField">Código da regulação (opcional, fictício)</label>
+        <input id="regulationField" maxlength="30" autocomplete="off" autocapitalize="characters" placeholder="Ex.: REG-0506-1300" />
+
+        <div class="privacy-note">
+          A solicitação registra apenas unidades e códigos. Não inclua nome, CPF, CNS, diagnóstico ou dados do paciente.
+        </div>
+
+        <div class="form-actions">
+          <button type="submit">Abrir solicitação</button>
+          <a href="../index.html">Voltar ao painel</a>
+        </div>
+      </form>
+      <div class="success" id="createResult" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/metrics.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="../js/regulacao.js"></script>
+</body>
+</html>

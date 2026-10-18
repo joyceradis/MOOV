@@ -20,7 +20,7 @@ Apoio à governança de frotas de ambulâncias contratadas: rastreabilidade de *
 
 | Perfil | Etapas que registra |
 | --- | --- |
-| Origem/Regulação | solicitada, designada (vêm do conjunto; sem página nesta versão) |
+| Regulação | solicitada (abre solicitação com código `SOL-aammdd-Lnnn`), designada (só veículo municipal disponível) |
 | Motorista | chegada_origem, saida_origem, chegada_destino, liberado |
 | Equipe | embarque |
 | Destino | recebido |
