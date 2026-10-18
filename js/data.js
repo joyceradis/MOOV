@@ -1,239 +1,157 @@
+// Conjunto de dados FICTÍCIO para demonstração. Unidades, veículos, códigos e horários são exemplos;
+// nenhum registro corresponde a pacientes, ambulâncias ou atendimentos reais.
 const MOOV_DATA = {
+  // Relógio da demonstração: "agora" para cálculos de etapas em andamento.
+  referenceTime: "2026-05-06T09:30",
+
+  // Parâmetros de gestão (ajustáveis pela contratante; não são regras clínicas).
+  config: {
+    retentionAlertMin: 30,
+    unassignedAlertMin: 15
+  },
+
   units: [
-    {
-      id: "PASP",
-      name: "PA São Pedro",
-      type: "Origem",
-      coords: [-20.2967, -40.3355]
-    },
-    {
-      id: "PA_SUA",
-      name: "PA Enseada do Suá",
-      type: "Origem",
-      coords: [-20.3187, -40.2956]
-    },
-    {
-      id: "HEVV",
-      name: "Hospital Evangélico",
-      type: "Destino",
-      coords: [-20.3429, -40.2961]
-    },
-    {
-      id: "HUCAM",
-      name: "HUCAM",
-      type: "Destino",
-      coords: [-20.2766, -40.3038]
-    },
-    {
-      id: "HIMABA",
-      name: "Hospital Infantil / referência",
-      type: "Destino",
-      coords: [-20.3215, -40.3462]
-    }
+    { id: "PASP", name: "PA São Pedro", type: "origem", coords: [-20.2967, -40.3355] },
+    { id: "PASUA", name: "PA Enseada do Suá", type: "origem", coords: [-20.3187, -40.2956] },
+    { id: "PAMAR", name: "PA Maruípe", type: "origem", coords: [-20.2898, -40.3127] },
+    { id: "HEVV", name: "Hospital Evangélico", type: "destino", coords: [-20.3429, -40.2961] },
+    { id: "HUCAM", name: "HUCAM", type: "destino", coords: [-20.2766, -40.3038] },
+    { id: "HINF", name: "Hospital Infantil / referência", type: "destino", coords: [-20.3215, -40.3462] },
+    { id: "OC192A", name: "Via pública — ocorrência 192", type: "ocorrencia", coords: [-20.2973, -40.2952] },
+    { id: "OC192B", name: "Via pública — ocorrência 192", type: "ocorrencia", coords: [-20.3302, -40.3221] }
   ],
 
-  transfers: [
+  // Frota: apenas os veículos "municipal" compõem a frota contratada sob governança municipal.
+  fleet: [
+    { id: "PMV-03", flowType: "municipal", type: "Transporte sanitário", operator: "Contratada A (fictícia)" },
+    { id: "PMV-05", flowType: "municipal", type: "USB — suporte básico", operator: "Contratada A (fictícia)" },
+    { id: "PMV-08", flowType: "municipal", type: "USB — suporte básico", operator: "Contratada A (fictícia)" },
+    { id: "PMV-11", flowType: "municipal", type: "Transporte sanitário", operator: "Contratada A (fictícia)" },
+    { id: "USB-12", flowType: "samu", type: "SAMU 192 — USB", operator: "SAMU 192 (fora da frota municipal)" },
+    { id: "USA-04", flowType: "samu", type: "SAMU 192 — USA", operator: "SAMU 192 (fora da frota municipal)" }
+  ],
+
+  // Cada solicitação é identificada por um código; as páginas da ponta são abertas com ?codigo=<code>.
+  requests: [
     {
-      id: "R260506-P01-SM08-H01-001",
-      requestCode: "SOL-260506-P01-001",
+      code: "SOL-260506-P01-001",
+      regulationCode: "REG-0506-1187",
       flowType: "municipal",
-      vehicleLabel: "PMV-08",
-      vehicleType: "Ambulância Municipal PMV",
-      origin: "PA São Pedro",
-      destination: "Hospital Evangélico",
-      status: "deslocamento",
-      eta: "18 min",
-      alert: false,
-      route: [
-        [-20.2967, -40.3355],
-        [-20.3051, -40.3251],
-        [-20.3158, -40.3149],
-        [-20.3292, -40.3047],
-        [-20.3429, -40.2961]
-      ],
-      vehicleCoords: [-20.3194, -40.3120],
-      kmInitial: "45021",
-      kmFinal: null,
-      microevents: [
-        {
-          key: "solicitada",
-          label: "Solicitada",
-          time: "08:15",
-          profile: "Origem",
-          state: "done"
-        },
-        {
-          key: "designada",
-          label: "Veículo designado",
-          time: "08:17",
-          profile: "Regulação/CTS",
-          state: "done"
-        },
-        {
-          key: "embarcado",
-          label: "Paciente embarcado",
-          time: "08:24",
-          profile: "Equipe",
-          state: "done"
-        },
-        {
-          key: "deslocamento",
-          label: "Em deslocamento",
-          time: "08:27",
-          profile: "Motorista",
-          state: "active"
-        },
-        {
-          key: "chegada",
-          label: "Chegada ao destino",
-          time: "prev. 08:45",
-          profile: "Motorista",
-          state: "pending"
-        },
-        {
-          key: "recebido",
-          label: "Recebido",
-          time: "--",
-          profile: "Destino",
-          state: "pending"
-        }
+      vehicleId: "PMV-08",
+      originId: "PASP",
+      destinationId: "HEVV",
+      events: [
+        { key: "solicitada", at: "2026-05-06T08:15" },
+        { key: "designada", at: "2026-05-06T08:17" },
+        { key: "chegada_origem", at: "2026-05-06T08:21" },
+        { key: "embarque", at: "2026-05-06T08:24" },
+        { key: "saida_origem", at: "2026-05-06T08:27", km: 45021 }
       ]
     },
-
     {
-      id: "R260506-P02-SM03-H02-002",
-      requestCode: "SOL-260506-P02-002",
+      code: "SOL-260506-P02-002",
+      regulationCode: "REG-0506-1172",
       flowType: "municipal",
-      vehicleLabel: "PMV-03",
-      vehicleType: "Transporte Sanitário Municipal",
-      origin: "PA Enseada do Suá",
-      destination: "HUCAM",
-      status: "aguardando",
-      eta: "Aguardando aceite",
-      alert: true,
-      route: [
-        [-20.3187, -40.2956],
-        [-20.3070, -40.2992],
-        [-20.2941, -40.3022],
-        [-20.2766, -40.3038]
-      ],
-      vehicleCoords: [-20.2769, -40.3040],
-      kmInitial: "11802",
-      kmFinal: "11815",
-      microevents: [
-        {
-          key: "solicitada",
-          label: "Solicitada",
-          time: "07:42",
-          profile: "Origem",
-          state: "done"
-        },
-        {
-          key: "designada",
-          label: "Veículo designado",
-          time: "07:50",
-          profile: "Regulação/CTS",
-          state: "done"
-        },
-        {
-          key: "embarcado",
-          label: "Paciente embarcado",
-          time: "08:02",
-          profile: "Equipe",
-          state: "done"
-        },
-        {
-          key: "deslocamento",
-          label: "Em deslocamento",
-          time: "08:05",
-          profile: "Motorista",
-          state: "done"
-        },
-        {
-          key: "chegada",
-          label: "Chegada ao destino",
-          time: "08:21",
-          profile: "Motorista",
-          state: "done"
-        },
-        {
-          key: "recebido",
-          label: "Aguardando recebimento",
-          time: "+22 min",
-          profile: "Destino",
-          state: "active"
-        }
+      vehicleId: "PMV-03",
+      originId: "PASUA",
+      destinationId: "HUCAM",
+      events: [
+        { key: "solicitada", at: "2026-05-06T07:42" },
+        { key: "designada", at: "2026-05-06T07:50" },
+        { key: "chegada_origem", at: "2026-05-06T07:58" },
+        { key: "embarque", at: "2026-05-06T08:02" },
+        { key: "saida_origem", at: "2026-05-06T08:05", km: 11802 },
+        { key: "chegada_destino", at: "2026-05-06T08:21", km: 11815 }
       ]
     },
-
     {
-      id: "SAMU-260506-USB12-H01-003",
-      requestCode: "SAMU-192-260506-003",
+      code: "SOL-260506-P01-003",
+      regulationCode: "REG-0506-1140",
+      flowType: "municipal",
+      vehicleId: "PMV-05",
+      originId: "PASP",
+      destinationId: "HINF",
+      events: [
+        { key: "solicitada", at: "2026-05-06T06:50" },
+        { key: "designada", at: "2026-05-06T06:58" },
+        { key: "chegada_origem", at: "2026-05-06T07:10" },
+        { key: "embarque", at: "2026-05-06T07:16" },
+        { key: "saida_origem", at: "2026-05-06T07:20", km: 30210 },
+        { key: "chegada_destino", at: "2026-05-06T07:41", km: 30224 },
+        { key: "recebido", at: "2026-05-06T07:55" },
+        { key: "liberado", at: "2026-05-06T08:00" }
+      ]
+    },
+    {
+      code: "SOL-260506-P03-004",
+      regulationCode: "REG-0506-1101",
+      flowType: "municipal",
+      vehicleId: "PMV-08",
+      originId: "PAMAR",
+      destinationId: "HUCAM",
+      events: [
+        { key: "solicitada", at: "2026-05-06T05:40" },
+        { key: "designada", at: "2026-05-06T05:44" },
+        { key: "chegada_origem", at: "2026-05-06T05:52" },
+        { key: "embarque", at: "2026-05-06T05:58" },
+        { key: "saida_origem", at: "2026-05-06T06:01", km: 44990 },
+        // km final não informado: lacuna documental proposital do exemplo.
+        { key: "chegada_destino", at: "2026-05-06T06:12" },
+        { key: "recebido", at: "2026-05-06T06:31" },
+        { key: "liberado", at: "2026-05-06T06:35" }
+      ]
+    },
+    {
+      code: "SOL-260506-P02-005",
+      regulationCode: "REG-0506-1203",
+      flowType: "municipal",
+      vehicleId: "PMV-11",
+      originId: "PASUA",
+      destinationId: "HEVV",
+      events: [
+        { key: "solicitada", at: "2026-05-06T09:05" },
+        { key: "designada", at: "2026-05-06T09:20" }
+      ]
+    },
+    {
+      code: "SOL-260506-P03-006",
+      regulationCode: "REG-0506-1209",
+      flowType: "municipal",
+      vehicleId: null,
+      originId: "PAMAR",
+      destinationId: "HINF",
+      events: [
+        { key: "solicitada", at: "2026-05-06T09:12" }
+      ]
+    },
+    {
+      code: "SAMU-192-260506-003",
+      regulationCode: "192-0506-0311",
       flowType: "samu",
-      vehicleLabel: "USB-12",
-      vehicleType: "SAMU 192",
-      origin: "Via pública / acionamento 192",
-      destination: "Hospital Evangélico",
-      status: "deslocamento",
-      eta: "9 min",
-      alert: false,
-      route: [
-        [-20.2973, -40.2952],
-        [-20.3072, -40.2959],
-        [-20.3225, -40.2964],
-        [-20.3429, -40.2961]
-      ],
-      vehicleCoords: [-20.3141, -40.2962],
-      kmInitial: null,
-      kmFinal: null,
-      microevents: [
-        {
-          key: "acionamento",
-          label: "Acionamento SAMU",
-          time: "08:31",
-          profile: "Central 192",
-          state: "done"
-        },
-        {
-          key: "designada",
-          label: "USB designada",
-          time: "08:33",
-          profile: "SAMU",
-          state: "done"
-        },
-        {
-          key: "deslocamento",
-          label: "Em deslocamento",
-          time: "08:37",
-          profile: "SAMU",
-          state: "active"
-        },
-        {
-          key: "chegada",
-          label: "Chegada ao destino",
-          time: "prev. 08:49",
-          profile: "SAMU/Destino",
-          state: "pending"
-        }
+      vehicleId: "USB-12",
+      originId: "OC192A",
+      destinationId: "HEVV",
+      events: [
+        { key: "solicitada", at: "2026-05-06T08:31" },
+        { key: "designada", at: "2026-05-06T08:33" },
+        { key: "chegada_origem", at: "2026-05-06T08:39" },
+        { key: "saida_origem", at: "2026-05-06T08:41" },
+        { key: "chegada_destino", at: "2026-05-06T08:49" },
+        { key: "recebido", at: "2026-05-06T09:02" }
       ]
-    }
-  ],
-
-  bottlenecks: [
-    {
-      label: "Espera por recebimento",
-      detail: "Maior atraso atual",
-      value: "22 min"
     },
     {
-      label: "Veículo designado → embarque",
-      detail: "Janela média observada",
-      value: "9 min"
-    },
-    {
-      label: "Completude do km final",
-      detail: "Campos preenchidos",
-      value: "68%"
+      code: "SAMU-192-260506-007",
+      regulationCode: "192-0506-0344",
+      flowType: "samu",
+      vehicleId: "USA-04",
+      originId: "OC192B",
+      destinationId: "HUCAM",
+      events: [
+        { key: "solicitada", at: "2026-05-06T09:10" },
+        { key: "designada", at: "2026-05-06T09:12" },
+        { key: "chegada_origem", at: "2026-05-06T09:21" }
+      ]
     }
   ]
 };
