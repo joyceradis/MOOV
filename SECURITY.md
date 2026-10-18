@@ -25,6 +25,10 @@ Nenhuma versão é homologada para uso operacional. Não use com dados de pacien
 
 Não publique em issues públicas dados pessoais, credenciais ou passos exploráveis sensíveis. Use **Report a vulnerability** na aba Security do repositório, se habilitado; caso contrário, peça à mantenedora um canal privado. Não há prazo de resposta garantido nem programa de recompensas.
 
+## Backend (fase 1, não implantado)
+
+`server/` implementa sessão por perfil (scrypt, token opaco com hash no banco), links temporários da ponta (256 bits, expiração, revogação, escopo de código e perfil), trilha append-only com encadeamento SHA-256 e verificação, registro de acessos, cabeçalhos de segurança e limite de tentativas de login. Riscos e limites: ver [ADR 0001](docs/adr/0001-fase-operacional-backend.md).
+
 ## Trabalho futuro
 
 Autenticação, autorização, tokens efêmeros por código, trilha imutável, retenção, resposta a incidentes e adequação à LGPD são requisitos de uma versão operacional, **não controles existentes**. Ver [docs/arquitetura.md](docs/arquitetura.md) e [ROADMAP.md](ROADMAP.md).

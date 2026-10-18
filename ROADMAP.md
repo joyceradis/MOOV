@@ -22,7 +22,14 @@
 ## Gate de decisão de produto — [#4](https://github.com/joyceradis/MOOV/issues/4)
 Sem decisão explícita e responsáveis institucionais, **não** implementar servidor com dados reais, autenticação em produção ou integrações.
 
-## Etapa C — Operacional (somente após o gate)
+## Etapa C — Operacional (gate aprovado em 18/10/2026, #4)
+- [x] Fase 1: backend (API, banco, perfis, links temporários por código, trilha encadeada, exportação). Ver [ADR 0001](docs/adr/0001-fase-operacional-backend.md).
+- [ ] Fase 2: painel e ponta consumindo a API; tela de login.
+- [ ] Fase 3: PostgreSQL, backup/restauração, observabilidade, ancoragem da trilha.
+- [ ] Fase 4: PWA da ponta com fila offline.
+- [ ] **Depende da fundadora:** hospedagem/custo, deploy, dados reais (LGPD), responsáveis institucionais.
+
+### Itens originais da etapa
 1. Requisitos com gestores do contrato, regulação, equipes e destinos; regras de faturamento do contrato.
 2. API + banco com trilha de eventos append-only; autenticação e RBAC; links da ponta com token efêmero.
 3. PWA com fila offline e resolução de conflitos.

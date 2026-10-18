@@ -27,6 +27,19 @@ Ferramenta de apoio à **gestão** (pública ou privada) de frotas de ambulânci
 
 Parâmetros de alerta (retenção, tempo sem veículo) ficam em `MOOV_DATA.config` e são **parâmetros de gestão**, não regras clínicas.
 
+## Backend operacional (fase 1, sem deploy)
+
+Decisão de iniciar a fase operacional em [#4](https://github.com/joyceradis/MOOV/issues/4); arquitetura em [docs/adr/0001](docs/adr/0001-fase-operacional-backend.md).
+
+```bash
+export MOOV_DB=moov-dev.sqlite           # banco local (SQLite); nunca dados reais nesta fase
+node server/main.mjs seed-demo           # carga do conjunto fictício
+MOOV_NEW_PASSWORD='uma-senha-longa-123' node server/main.mjs create-user ana gestor
+node server/main.mjs serve               # API em http://127.0.0.1:8787
+```
+
+API JSON com sessão por perfil (`admin`, `gestor`, `regulacao`), links temporários da ponta por código, trilha append-only encadeada por hash (`GET /api/audit/verify`) e exportação CSV. Testes em `tests/server.test.mjs`. O painel estático ainda não consome a API; isso fica para a fase 2.
+
 ## Executar
 
 ```bash
