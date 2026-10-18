@@ -362,6 +362,11 @@ button {
   border-color: rgba(37, 225, 220, .35);
 }
 
+/* Tiles claros do OSM em tom escuro, sem afetar marcadores e linhas. */
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(.82) contrast(.92) saturate(.55);
+}
+
 #map {
   position: absolute;
   inset: 0;

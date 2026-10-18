@@ -10,7 +10,7 @@ Nenhuma versão é homologada para uso operacional. Não use com dados de pacien
 
 - Content-Security-Policy por `<meta>` em todas as páginas: `script-src 'self'`, `connect-src 'none'`, `form-action 'none'`, `object-src 'none'`, `base-uri 'none'`; sem script inline.
 - Leaflet 1.9.4 versionado em `vendor/` (teste garante igualdade com o pacote oficial); sem CDN de scripts nem fontes remotas.
-- Único terceiro contatado: tiles de mapa CARTO/OpenStreetMap (imagens, com `referrer` desativado). Revelam ao provedor o IP e a região visualizada.
+- Único terceiro contatado: tiles de mapa do OpenStreetMap (`tile.openstreetmap.org`, sem chave). Revelam ao provedor o IP, a região visualizada e a origem do site (o `Referer` é enviado só nas imagens de tile, como exige a política de uso do OSM; o resto da página usa `no-referrer`). Uso intenso exigiria servidor de tiles próprio ou contratado.
 - Conteúdo dinâmico escapado; teste de navegador cobre tentativa de injeção de HTML.
 - Exportação CSV neutraliza fórmulas de planilha.
 - CI com Actions fixadas por SHA e `permissions: contents: read`.
