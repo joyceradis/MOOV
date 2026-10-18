@@ -1,60 +1,67 @@
-# MOOV · Painel demonstrativo de transições assistenciais
+# MOOV · Governança da frota de ambulâncias
 
-Protótipo **estático e demonstrativo** de visualização do fluxo de transporte entre serviços de saúde da Grande Vitória. Não é sistema operacional de ambulâncias, regulação ou prontuário.
+Ferramenta de apoio à **gestão** (pública ou privada) de frotas de ambulâncias contratadas — por exemplo, a frota municipal que atende UBS, pronto-atendimentos e hospitais —, com foco em **rastreabilidade jurídica e de uso de recursos**: cada solicitação/regulação tem um código, cada etapa tem um registro com horário e responsável, e a gestão enxerga tempos, retenções, km e lacunas documentais.
 
-> **Dados integralmente ilustrativos.** Veículos, trajetos, horários, ETAs, gargalos e microeventos exibidos no painel são exemplos; não há API operacional, rastreamento de frota, autenticação, transmissão de registros ou integração com PMV/SAMU 192. **Não inserir dados reais de pacientes ou profissionais.**
+**Não é rastreamento de localização.** O mapa é esquemático: a posição exibida decorre da última etapa registrada (origem, trajeto, destino), não de GPS.
 
-## O que pode ser demonstrado
+> **Estado atual: protótipo estático com dados 100% fictícios.** Não há servidor, autenticação nem integração com regulação, SAMU 192 ou prontuário. Registros feitos nas páginas da ponta ficam **apenas no `localStorage` do navegador**. Não inserir dados reais de pacientes ou profissionais.
 
-- Mapa interativo com unidades, veículos SVG e rotas exemplificativas (Leaflet + OpenStreetMap/CARTO).
-- Filtros por tipo de fluxo (municipal e SAMU) e por status, seleção de transferências e linha do tempo.
-- Contagem de transferências e eventos concluídos **do conjunto de demonstração**.
-- Microformulários de motorista, equipe assistencial e destino: **simulam confirmação local**, não enviam informações.
-- Separação conceitual: frota municipal e SAMU aparecem de forma distinta, sem insinuar governança integrada.
+## O que funciona hoje
 
-**Limitações dos indicadores:** não existe base de eventos de produção nem estimador de tempo de resposta; métricas não observadas não devem ser apresentadas como medidas reais.
+**Painel da gestão (`index.html`)**
+- Indicadores da **frota municipal** calculados dos registros (SAMU 192 contado à parte): tempo médio de resposta (solicitação → chegada à origem), tempo até o recebimento, retenção do veículo no destino, km por hodômetro, lastro documental — sempre com `n`.
+- Tabela por código com etapa atual, alertas, retenção e lacunas; filtros por fluxo, etapa, veículo e destino.
+- Cronologia da solicitação (horário, perfil, origem do registro, intervalo entre etapas) e lacunas explícitas.
+- Gargalos: transições mais lentas e retenção de veículos por destino. Uso da frota por veículo.
+- Exportação CSV da trilha de auditoria e do resumo por solicitação (protegida contra injeção de fórmulas).
+- Separação de fluxos: frota municipal contratada × SAMU 192 (identificado, fora da frota e das páginas de registro).
+
+**Páginas da ponta (`pages/*.html?codigo=<código>`)**
+- Motorista (chegada à origem, saída com km, chegada com km, liberação), equipe (embarque) e destino (recebimento).
+- Abrem pelo código já estabelecido; exibem só dados logísticos; aceitam **apenas a próxima etapa** do fluxo e do perfil; validam km.
+- O painel aberto em outra aba atualiza ao registrar.
+
+Parâmetros de alerta (retenção, tempo sem veículo) ficam em `MOOV_DATA.config` e são **parâmetros de gestão**, não regras clínicas.
 
 ## Executar
 
-Abra `index.html` em navegador conectado à internet. É necessário acessar CDN e tiles do mapa. O conteúdo principal usa HTML/CSS/JavaScript, sem backend nem build. Para simular um servidor estático:
+```bash
+python3 -m http.server 8080   # http://localhost:8080
+```
+
+Sem build. Leaflet 1.9.4 é versionado em `vendor/`; apenas os tiles do mapa (CARTO/OSM) vêm da internet. Sem rede, o painel funciona sem o fundo do mapa.
+
+## Testes
 
 ```bash
-python3 -m http.server 8080
-# http://localhost:8080
+npm ci
+npx playwright install chromium   # uma vez
+npm run check && npm test
 ```
 
-## Estrutura observada
+- `tests/metrics.test.mjs` — cálculos, com valores conferidos à mão sobre o conjunto fictício.
+- `tests/store.test.mjs` — validações do registro local (perfil, sequência, SAMU, km, falha de gravação, relógio).
+- `tests/smoke.test.mjs` — avisos, CSP, ausência de script inline/CDN, integridade do Leaflet versionado, links.
+- `tests/browser.test.mjs` — Chromium real: painel, filtros, fluxo ponta → painel, XSS, exportação, modo sem mapa, teclado, layout móvel. Toda requisição externa é bloqueada e verificada.
+
+A CI (`.github/workflows/static-audit.yml`) roda os três em cada PR. CI verde não substitui homologação com usuários reais.
+
+## Estrutura
 
 ```text
-index.html           painel demonstrativo (js/data.js + js/app.js)
-css/styles.css       visual
-js/data.js           eventos, unidades e gargalos fictícios
-js/app.js            entrada do painel e controle do mapa
-js/dashboard.js      implementação histórica — não incluída em index.html
-js/map.js            implementação histórica — verificar antes de reaproveitar
-js/ui.js             helpers da implementação histórica
-js/forms.js          helper legado — formulários atuais possuem script inline
-pages/
-  motorista.html
-  enfermagem.html
-  destino.html
-docs/
-  arquitetura.md
-ROADMAP.md           etapas e gates de decisão
-SECURITY.md          segurança e reporte
-.github/workflows/   verificações automáticas propostas
+index.html               painel da gestão
+pages/                   páginas da ponta (motorista, enfermagem, destino)
+js/data.js               conjunto fictício (unidades, frota, solicitações, parâmetros)
+js/metrics.js            cálculos puros (tempos, retenção, lastro, frota, CSV)
+js/store.js              registro local da demonstração + relógio da demonstração
+js/app.js                painel
+js/registro.js           páginas da ponta
+css/styles.css           estilos
+vendor/leaflet-1.9.4/    Leaflet (BSD-2-Clause)
+docs/arquitetura.md      arquitetura e limites
+ROADMAP.md / SECURITY.md
 ```
-
-Não remover módulos históricos sem inventário de chamadas/referências. Eles não são carregados pela entrada principal atualmente.
-
-## Validação
-
-Ao propor alterações, rodar as verificações da CI (sintaxe JavaScript, testes de dados sintéticos e referências dos arquivos HTML). Complementar com inspeção visual manual em desktop e celular; testes estáticos não demonstram funcionamento de CDN, mapa e acessibilidade em navegador.
-
-## Próximos passos
-
-Consultar [ROADMAP.md](ROADMAP.md). **Primeiro consolidar a demonstração transparente**; só avaliar eventual produto operacional depois de decisão explícita, desenho institucional, segurança e LGPD. Ver [issue #4](https://github.com/joyceradis/MOOV/issues/4).
 
 ## Licença
 
-Código sob [GPL-3.0](LICENSE). Nomes, marcas e símbolos de instituições reais não significam vínculo, homologação nem autorização operacional.
+Código sob [GPL-3.0](LICENSE). Nomes de instituições no conjunto fictício não indicam vínculo, homologação ou autorização.

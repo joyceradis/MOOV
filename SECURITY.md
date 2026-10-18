@@ -2,18 +2,29 @@
 
 ## Estado atual
 
-O MOOV é **apenas um protótipo estático**. Não fornece identificação de usuários, segregação por perfil, tokens temporários, controle de acesso, armazenamento de eventos, logs auditáveis ou integração com serviços públicos de saúde.
+O MOOV é **um protótipo estático com dados fictícios**. Não possui identificação de usuários, controle de acesso por perfil, tokens, servidor, banco ou logs auditáveis. Registros feitos nas páginas da ponta ficam apenas no `localStorage` do próprio navegador, sem autoria verificada.
 
-Nenhuma versão é homologada para uso clínico, assistencial ou operacional. Não use o protótipo com dados de pacientes, documentos assistenciais, identificadores pessoais, localizações reais de ambulâncias ou informações sigilosas.
+Nenhuma versão é homologada para uso operacional. Não use com dados de pacientes, documentos assistenciais, identificadores pessoais, localizações reais ou informações sigilosas.
+
+## Controles presentes
+
+- Content-Security-Policy por `<meta>` em todas as páginas: `script-src 'self'`, `connect-src 'none'`, `form-action 'none'`, `object-src 'none'`, `base-uri 'none'`; sem script inline.
+- Leaflet 1.9.4 versionado em `vendor/` (teste garante igualdade com o pacote oficial); sem CDN de scripts nem fontes remotas.
+- Único terceiro contatado: tiles de mapa CARTO/OpenStreetMap (imagens, com `referrer` desativado). Revelam ao provedor o IP e a região visualizada.
+- Conteúdo dinâmico escapado; teste de navegador cobre tentativa de injeção de HTML.
+- Exportação CSV neutraliza fórmulas de planilha.
+- CI com Actions fixadas por SHA e `permissions: contents: read`.
+
+## Limites conhecidos
+
+- A CSP por `<meta>` não cobre `frame-ancestors`: a página pode ser embutida em iframe de terceiros. O GitHub Pages não permite definir cabeçalhos HTTP.
+- No GitHub Pages, a origem `joyceradis.github.io` é compartilhada com os demais repositórios publicados da conta: eles podem ler e alterar o `localStorage` do MOOV e manipular suas páginas. Registros locais não têm integridade nem autoria. O painel descarta registros malformados, mas isso não é controle de acesso.
+- Um piloto real exige domínio próprio, cabeçalhos HTTP (`frame-ancestors 'none'`, HSTS) e backend.
 
 ## Reportar vulnerabilidades
 
-Não publique em issues públicas dados pessoais, tokens, credenciais, capturas com informações reais nem passos exploráveis sensíveis. Use o recurso privado **Report a vulnerability** da aba Security do repositório, **se ele estiver habilitado**. Caso não exista, solicite à mantenedora um canal privado sem enviar detalhes sensíveis pela issue pública.
+Não publique em issues públicas dados pessoais, credenciais ou passos exploráveis sensíveis. Use **Report a vulnerability** na aba Security do repositório, se habilitado; caso contrário, peça à mantenedora um canal privado. Não há prazo de resposta garantido nem programa de recompensas.
 
-Não há prazo de resposta garantido nem programa de recompensas.
+## Trabalho futuro
 
-## Dependências e limitações
-
-O mapa depende de bibliotecas externas (Leaflet) e tiles de terceiros (CARTO/OSM). Disponibilidade e integridade devem ser validadas antes de qualquer demonstração pública. A página não é um mecanismo de localização real.
-
-Requisitos de autenticação, autorização, retenção, auditoria, resposta a incidentes, integração e adequação à LGPD **são trabalho futuro, não controles já existentes**. Ver [ROADMAP.md](ROADMAP.md).
+Autenticação, autorização, tokens efêmeros por código, trilha imutável, retenção, resposta a incidentes e adequação à LGPD são requisitos de uma versão operacional, **não controles existentes**. Ver [docs/arquitetura.md](docs/arquitetura.md) e [ROADMAP.md](ROADMAP.md).

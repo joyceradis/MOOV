@@ -3,189 +3,252 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MOOV | Painel de Governança</title>
-
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://*.basemaps.cartocdn.com; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <title>MOOV | Painel de Governança da Frota</title>
+  <link rel="stylesheet" href="./vendor/leaflet-1.9.4/leaflet.css" />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
 <body>
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
   <div class="app-shell">
     <aside class="sidebar">
       <p class="demo-notice" role="note"><strong>Dados simulados</strong> · Demonstração técnica; não representa ambulâncias, pacientes ou eventos em tempo real.</p>
       <div class="brand-block">
         <a class="brand-mark" href="./index.html" aria-label="MOOV">MOOV</a>
-        <p>Mobilidade que salva. Transporte. Agilidade. Cuidado.</p>
+        <p>Governança e rastreabilidade da frota de ambulâncias.</p>
       </div>
 
       <section class="hero-card">
-        <span>Painel de governança</span>
-        <h1>A inteligência da gestão</h1>
+        <span>Painel da gestão</span>
+        <h1>Cada solicitação, um código. Cada etapa, um registro.</h1>
         <p>
-          Mapa vivo, microeventos e linha do tempo para enxergar a transição assistencial sem sobrecarregar a ponta.
+          Cronologia por solicitação, tempos calculados a partir dos registros, retenção de veículos e lastro documental
+          para a gestão do contrato. Não é rastreamento de localização.
         </p>
       </section>
 
-      <nav class="quick-links" aria-label="Navegação do protótipo">
-        <a href="./index.html" class="active">Dashboard gestor</a>
-        <a href="./pages/motorista.html">Link motorista</a>
-        <a href="./pages/enfermagem.html">Link enfermagem</a>
-        <a href="./pages/destino.html">Link destino</a>
-      </nav>
-
-      <section class="metrics">
+      <section class="metrics" aria-label="Indicadores da frota municipal no recorte filtrado">
         <article>
-          <small>Transferências ilustrativas</small>
+          <small>Solicitações</small>
           <strong id="kpiTotal">--</strong>
-          <span>Registros do conjunto fictício</span>
+          <span id="kpiTotalDetail">frota municipal</span>
         </article>
-
         <article>
-          <small>Tempo médio operacional</small>
-          <strong id="kpiAvg">--</strong>
-          <span>Não calculado neste protótipo</span>
+          <small>Tempo médio de resposta</small>
+          <strong id="kpiResponse">--</strong>
+          <span id="kpiResponseDetail">solicitação → chegada à origem</span>
         </article>
-
         <article>
-          <small>Alertas ativos</small>
-          <strong id="kpiAlerts">--</strong>
-          <span>Gargalos operacionais</span>
+          <small>Tempo médio até recebimento</small>
+          <strong id="kpiTotalTime">--</strong>
+          <span id="kpiTotalTimeDetail">solicitações concluídas</span>
         </article>
-
+        <article>
+          <small>Veículo retido no destino</small>
+          <strong id="kpiRetention">--</strong>
+          <span id="kpiRetentionDetail">minutos acumulados</span>
+        </article>
+        <article>
+          <small>Km registrados</small>
+          <strong id="kpiKm">--</strong>
+          <span id="kpiKmDetail">saída → chegada (hodômetro)</span>
+        </article>
         <article>
           <small>Lastro documental</small>
           <strong id="kpiComplete">--</strong>
-          <span>Etapas do conjunto fictício</span>
+          <span id="kpiCompleteDetail">registros exigidos presentes</span>
         </article>
       </section>
 
-      <section class="filter-card">
+      <section class="filter-card" aria-label="Filtros">
         <div class="section-line">
           <span>Filtros de governança</span>
-          <button id="resetFilters">Limpar</button>
+          <button id="resetFilters" type="button">Limpar</button>
         </div>
 
         <label for="flowType">Tipo de fluxo</label>
         <select id="flowType">
           <option value="all">Todos</option>
-          <option value="municipal">Municipal / PMV</option>
+          <option value="municipal">Frota municipal (contratada)</option>
           <option value="samu">SAMU 192</option>
         </select>
 
-        <label for="statusFilter">Status</label>
-        <select id="statusFilter">
-          <option value="all">Todos</option>
-          <option value="solicitada">Solicitada</option>
-          <option value="designada">Veículo designado</option>
-          <option value="embarcado">Paciente embarcado</option>
-          <option value="deslocamento">Em deslocamento</option>
-          <option value="aguardando">Aguardando recebimento</option>
-          <option value="recebido">Recebido</option>
-          <option value="finalizado">Finalizado</option>
+        <label for="stageFilter">Etapa atual</label>
+        <select id="stageFilter">
+          <option value="all">Todas</option>
         </select>
+
+        <label for="vehicleFilter">Veículo</label>
+        <select id="vehicleFilter">
+          <option value="all">Todos</option>
+        </select>
+
+        <label for="destinationFilter">Destino</label>
+        <select id="destinationFilter">
+          <option value="all">Todos</option>
+        </select>
+      </section>
+
+      <section class="note-card">
+        <span>Relógio da demonstração</span>
+        <p><strong id="demoClock">--</strong></p>
+        <p id="localCount" class="muted">Nenhum registro local.</p>
+        <button id="resetDemo" type="button" class="ghost-button">Apagar registros locais</button>
       </section>
 
       <section class="note-card">
         <span>Separação de responsabilidade</span>
         <p>
-          Fluxo <strong>PMV/Municipal</strong> entra na governança municipal.
-          Fluxo <strong>SAMU 192</strong> aparece identificado no mapa, mas separado da frota municipal.
+          A <strong>frota municipal contratada</strong> compõe os indicadores de frota.
+          O <strong>SAMU 192</strong> aparece identificado, mas fora da frota municipal e das páginas de registro.
         </p>
       </section>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content" id="conteudo">
       <header class="topbar">
         <div>
-          <span>Grande Vitória</span>
-          <h2>Painel visual de transições assistenciais · demonstração</h2>
+          <span>Grande Vitória · conjunto fictício</span>
+          <h2>Governança das solicitações de transporte</h2>
         </div>
 
-        <div class="legend">
-          <p><i class="dot municipal"></i> PMV / Municipal</p>
-          <p><i class="dot samu"></i> SAMU 192</p>
-          <p><i class="dot alert"></i> Gargalo</p>
+        <div class="topbar-actions">
+          <button id="exportAudit" type="button">Exportar trilha de auditoria (CSV)</button>
+          <button id="exportSummary" type="button" class="ghost-button">Exportar resumo por solicitação (CSV)</button>
         </div>
       </header>
 
       <section class="map-card">
-        <div id="map" role="region" aria-label="Mapa da Grande Vitória com transições assistenciais"></div>
+        <div id="map" role="region" aria-label="Mapa esquemático de origens e destinos das solicitações"></div>
+        <p class="map-caption">
+          Posição <strong>esquemática</strong>, definida pela última etapa registrada (origem, trajeto ou destino). Não é GPS.
+          <span class="legend-inline"><i class="dot municipal"></i> Municipal <i class="dot samu"></i> SAMU 192 <i class="dot alert"></i> Alerta</span>
+        </p>
+      </section>
 
-        <article class="selected-card" id="selectedTransfer">
-          <span>Transferência selecionada</span>
-          <h3>Selecione uma ambulância no mapa</h3>
-          <p>A linha do tempo e os dados de governança aparecerão aqui.</p>
-        </article>
+      <section class="panel selected-panel" id="selectedTransfer" aria-live="polite"></section>
+
+      <section class="panel">
+        <div class="section-line">
+          <div>
+            <span>Solicitações / regulações</span>
+            <h3>Situação por código</h3>
+          </div>
+          <b id="requestCount"></b>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="requestTable">
+            <caption class="sr-only">Solicitações do recorte filtrado. Selecione um código para ver a cronologia.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Código</th>
+                <th scope="col">Fluxo</th>
+                <th scope="col">Veículo</th>
+                <th scope="col">Origem → destino</th>
+                <th scope="col">Etapa atual</th>
+                <th scope="col">Tempo</th>
+                <th scope="col">Retenção</th>
+                <th scope="col">Km</th>
+                <th scope="col">Lastro</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="content-grid">
         <article class="panel">
           <div class="section-line">
             <div>
-              <span>Microeventos</span>
-              <h3>Linha viva da transição</h3>
+              <span>Cronologia</span>
+              <h3>Registros da solicitação</h3>
             </div>
-
             <b id="timelineCode">Sem seleção</b>
           </div>
-
-          <div id="timeline" class="timeline empty">
-            Selecione uma transferência no mapa.
-          </div>
+          <ol id="timeline" class="chronology empty">
+            <li>Selecione uma solicitação.</li>
+          </ol>
         </article>
 
         <article class="panel">
           <div class="section-line">
             <div>
-              <span>Matriz de gargalos</span>
-              <h3>Onde o fluxo está travando</h3>
+              <span>Gargalos</span>
+              <h3>Onde o tempo se acumula (frota municipal)</h3>
             </div>
           </div>
-
           <div id="bottleneckList" class="bottlenecks"></div>
+          <h4 class="subhead">Retenção de veículos por destino</h4>
+          <div id="retentionList" class="bottlenecks"></div>
         </article>
       </section>
 
-      <section class="panel architecture">
-        <span>Arquitetura de dados</span>
-        <h3>Quatro entidades principais de suporte</h3>
+      <section class="panel">
+        <div class="section-line">
+          <div>
+            <span>Frota municipal contratada</span>
+            <h3>Uso do recurso por veículo</h3>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="fleetTable">
+            <caption class="sr-only">Indicadores por veículo da frota municipal, calculados sobre todas as solicitações do conjunto.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Veículo</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Solicitações</th>
+                <th scope="col">Em serviço</th>
+                <th scope="col">Retido no destino</th>
+                <th scope="col">Km registrados</th>
+                <th scope="col">Situação</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="muted small">
+          Indicadores auxiliares para identificar gargalos de uso do recurso; não convertem minutos ou km em valores
+          financeiros, pois isso depende das regras do contrato.
+        </p>
+      </section>
 
+      <section class="panel architecture">
+        <span>Limites metodológicos</span>
+        <h3>O que estes números significam</h3>
         <div class="architecture-grid">
           <article>
             <b>01</b>
-            <strong>Evento de transição</strong>
-            <p>Código único, data, origem, destino, status e sequência.</p>
+            <strong>Tempos</strong>
+            <p>Diferença entre horários registrados nas etapas. Etapa sem registro não entra na média (n é exibido).</p>
           </article>
-
           <article>
             <b>02</b>
-            <strong>Unidade/serviço</strong>
-            <p>Origem, destino, tipo de unidade e ponto de aceite.</p>
+            <strong>Retenção</strong>
+            <p>Da chegada ao destino até a liberação do veículo. Em aberto, conta até o relógio da demonstração.</p>
           </article>
-
           <article>
             <b>03</b>
-            <strong>Recurso operacional</strong>
-            <p>Veículo/equipe, tipo de transporte, disponibilidade, km e acionamento.</p>
+            <strong>Lastro</strong>
+            <p>Etapas anteriores registradas e km de saída/chegada informados. Mede registro, não qualidade assistencial.</p>
           </article>
-
           <article>
             <b>04</b>
-            <strong>Microevento</strong>
-            <p>Status, horário, perfil responsável, confirmação, observação mínima e localização pontual quando autorizada.</p>
+            <strong>Alertas</strong>
+            <p>Parâmetros de gestão configuráveis (retenção ≥ <i id="cfgRetention">--</i> min; sem veículo ≥ <i id="cfgUnassigned">--</i> min). Não são regras clínicas.</p>
           </article>
         </div>
       </section>
     </main>
   </div>
 
-  <script defer src="./js/data.js"></script>
-  <script defer src="./js/app.js"></script>
+  <script src="./vendor/leaflet-1.9.4/leaflet.js"></script>
+  <script src="./js/data.js"></script>
+  <script src="./js/metrics.js"></script>
+  <script src="./js/store.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>

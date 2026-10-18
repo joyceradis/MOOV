@@ -1,29 +1,51 @@
-# Arquitetura MOOV · estado demonstrativo
+# Arquitetura MOOV
 
-> **Estado:** aplicação HTML/CSS/JS estática, sem backend, autenticador, banco, GPS ou integração oficial. O conteúdo abaixo distingue **presente** de **hipótese futura**. Dados, trajetos e microeventos são sintéticos; não usar com dados reais.
+## Objeto
 
-## Implementado no protótipo
+Apoio à governança de frotas de ambulâncias contratadas: rastreabilidade de **solicitações** (código), **etapas** (horário, perfil, km) e **uso do recurso** (tempo em serviço, retenção no destino, km). O objeto determina o método: o MOOV mede registros de etapas, não posição do veículo nem condição clínica.
 
-- `index.html` carrega `js/data.js` (dataset fictício) e `js/app.js` (Leaflet, filtros, indicadores e linha do tempo).
-- `pages/motorista.html`, `pages/enfermagem.html` e `pages/destino.html` são formulários de demonstração. A confirmação é local à página; não cria evento persistente nem atualiza painel.
-- `js/map.js`, `js/dashboard.js`, `js/ui.js` e `js/forms.js` são componentes de composição anterior. Verificar referências antes de reaproveitar; não são a entrada ativa do dashboard.
-- Mapa depende de CDN de Leaflet e tiles externos; falhas de rede podem tornar o mapa indisponível.
+## Implementado (protótipo estático)
 
-## Modelo conceitual — não implementado no servidor
+| Camada | Arquivo | Papel |
+| --- | --- | --- |
+| Dados | `js/data.js` | Conjunto fictício: unidades, frota, solicitações com eventos, `referenceTime`, `config` |
+| Cálculo | `js/metrics.js` | Funções puras: etapas, tempos, retenção, lastro, durações, frota, CSV |
+| Registro | `js/store.js` | `localStorage` do navegador; valida sequência, perfil e km; relógio da demonstração |
+| Gestão | `index.html` + `js/app.js` | Indicadores, tabela por código, cronologia, gargalos, frota, mapa esquemático, exportação |
+| Ponta | `pages/*.html` + `js/registro.js` | Página aberta por `?codigo=`; registra só a próxima etapa permitida ao perfil |
 
-| Entidade | Papel projetado |
+### Etapas
+
+`solicitada → designada → chegada_origem → embarque → saida_origem (km) → chegada_destino (km) → recebido → liberado`
+
+| Perfil | Etapas que registra |
 | --- | --- |
-| Transição assistencial | Identificador, origem, destino e estado |
-| Unidade/serviço | Papel de origem ou destino |
-| Recurso operacional | Veículo/equipe e sua classificação |
-| Microevento | Estado, data/hora e perfil responsável, com integridade verificável |
+| Origem/Regulação | solicitada, designada (vêm do conjunto; sem página nesta versão) |
+| Motorista | chegada_origem, saida_origem, chegada_destino, liberado |
+| Equipe | embarque |
+| Destino | recebido |
 
-O MOOV, se futuramente autorizado como produto operacional, deveria **complementar**, não substituir, regulação, prontuário ou sistemas institucionais. Os fluxos PMV e SAMU exigem fronteiras explícitas de competência.
+### Definições
 
-## Segurança e LGPD — requisitos futuros
+- **Tempo de resposta:** solicitada → chegada_origem.
+- **Tempo até recebimento:** solicitada → recebido (somente concluídas entram na média).
+- **Retenção no destino:** chegada_destino → liberado; em aberto, até o relógio da demonstração.
+- **Lastro documental:** cada etapa alcançada exige as anteriores registradas e km em saída/chegada. Lacunas são exibidas, nunca inferidas.
+- **Alertas:** retenção ≥ `config.retentionAlertMin`; sem veículo ≥ `config.unassignedAlertMin`. Parâmetros de gestão do contrato.
+- **SAMU 192:** exibido e identificado, fora dos indicadores de frota municipal e sem registro pelas páginas da ponta. Etapas do SAMU não registradas no MOOV não geram lacuna, pendência, retenção nem alerta.
 
-Minimizar dados pessoais, restringir visibilidade por papel, registrar evidência de cada atualização, autenticar operadores, gerenciar sessões e logs, definir retenção, detectar abuso e validar bases legais para tratamento de dados. O motorista não deve precisar acessar diagnóstico, CID, CPF, CNS ou prontuário. **Nenhuma dessas proteções deve ser presumida operante neste protótipo.**
+### Limites metodológicos
 
-## Governança de evolução
+- Minutos e km **não** são convertidos em valores financeiros: depende das regras de cada contrato.
+- Registros locais não têm autoria verificada, integridade criptográfica nem sincronização.
+- Posição no mapa é esquemática.
 
-Decisão de produto [#4](https://github.com/joyceradis/MOOV/issues/4); backlog e critérios em [ROADMAP.md](../ROADMAP.md). Alterações visuais/documentais devem conservar demonstração honesta e verificar smoke tests antes de integrar.
+## Segurança no protótipo
+
+- CSP restritiva por `<meta>` (`script-src 'self'`, `connect-src 'none'`, `form-action 'none'`), sem script inline nem CDN.
+- Saída sempre escapada (`escapeHtml`/`textContent`); observações limitadas e exibidas como texto.
+- Páginas da ponta não exibem nem pedem nome, CPF, CNS, diagnóstico, CID ou prontuário.
+
+## Necessário para uso operacional (não implementado)
+
+Servidor com API e banco; autenticação e autorização por perfil; links da ponta com token efêmero vinculado ao código; trilha de eventos imutável (append-only, assinada); sincronização offline (PWA) com resolução de conflitos; retenção e LGPD (base legal, minimização, DPIA); observabilidade; homologação com gestores e equipes. Decisão de produto: [issue #4](https://github.com/joyceradis/MOOV/issues/4).

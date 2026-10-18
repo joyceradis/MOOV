@@ -3,71 +3,87 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MOOV | Microformulário Enfermagem</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <title>MOOV | Página da equipe</title>
   <link rel="stylesheet" href="../css/styles.css" />
 </head>
 
-<body class="form-body">
+<body class="form-body" data-profile="enfermagem">
   <main class="form-shell">
-    <p class="demo-notice" role="note"><strong>Simulação com dados fictícios.</strong> Nenhum dado é enviado ou armazenado. Não preencher com dados reais de pacientes.</p>
+    <p class="demo-notice" role="note"><strong>Simulação com dados fictícios.</strong> O registro fica apenas neste navegador; nenhum dado é enviado a servidor. Não preencher com dados reais de pacientes.</p>
     <header>
       <a class="brand-mark" href="../index.html">MOOV</a>
-      <p style="color: var(--muted)">
-        Microcheck ilustrativo; não é registro assistencial.
-      </p>
-      <h1>Microcheck da equipe assistencial</h1>
+      <p class="muted">Registro mínimo do embarque; não substitui prontuário.</p>
+      <h1>Registro da equipe assistencial</h1>
     </header>
 
     <section class="panel form-card">
-      <form id="form">
-        <label>Condição de transporte</label>
-        <select required>
-          <option value="">Selecione</option>
-          <option>Estável para transporte</option>
-          <option>Requer monitorização</option>
-          <option>Requer oxigênio</option>
-          <option>Requer acompanhante técnico</option>
-        </select>
-
-        <label>Suporte mínimo</label>
-        <select required>
-          <option value="">Selecione</option>
-          <option>Maca</option>
-          <option>Cadeira de rodas</option>
-          <option>Oxigênio</option>
-          <option>Sem suporte adicional</option>
-        </select>
-
-        <label class="check-item">
-          <input type="checkbox" required />
-          Paciente preparado para embarque.
-        </label>
-
-        <label class="check-item">
-          <input type="checkbox" required />
-          Documentos mínimos conferidos pela equipe.
-        </label>
-
-        <label>Observação assistencial mínima</label>
-        <textarea placeholder="Não substituir prontuário. Registrar apenas ponto relevante para a transição."></textarea>
-
+      <form id="codeLookup" hidden>
+        <label for="codeInput">Código da solicitação</label>
+        <input id="codeInput" autocomplete="off" autocapitalize="characters" placeholder="Ex.: SOL-260506-P01-001" required />
+        <p id="lookupMessage" class="muted" role="status"></p>
         <div class="form-actions">
-          <button type="submit">Registrar microevento</button>
+          <button type="submit">Abrir solicitação</button>
           <a href="../index.html">Voltar ao painel</a>
         </div>
-
-        <div class="success" id="success">
-          Simulação concluída. Nenhum dado é enviado ou armazenado; o painel não foi atualizado.
-        </div>
       </form>
+
+      <div id="requestView" hidden>
+        <div class="transfer-summary">
+          <div><small>Código da solicitação</small><strong id="sumCode">--</strong></div>
+          <div><small>Regulação</small><strong id="sumRegulation">--</strong></div>
+          <div><small>Origem</small><strong id="sumOrigin">--</strong></div>
+          <div><small>Destino</small><strong id="sumDestination">--</strong></div>
+          <div><small>Veículo</small><strong id="sumVehicle">--</strong></div>
+          <div><small>Última etapa</small><strong id="sumStage">--</strong></div>
+        </div>
+
+        <div class="privacy-note">
+          Esta página não exibe nem solicita nome, CPF, CNS, diagnóstico, CID, exames ou prontuário.
+        </div>
+
+        <p id="blockedMessage" class="blocked-message" role="status" hidden></p>
+
+        <form id="stageForm" hidden>
+          <p class="next-stage">Etapa a registrar: <strong id="nextStage">--</strong></p>
+          <label for="supportField">Recurso de transporte utilizado</label>
+          <select id="supportField" data-note-label="Recurso" required>
+            <option value="">Selecione</option>
+            <option>Maca</option>
+            <option>Cadeira de rodas</option>
+            <option>Oxigênio</option>
+            <option>Sem recurso adicional</option>
+          </select>
+
+          <label class="check-item">
+            <input type="checkbox" id="readyCheck" data-note-label="Embarque confirmado" required />
+            Embarque realizado.
+          </label>
+
+          <label class="check-item">
+            <input type="checkbox" id="docsCheck" data-note-label="Documentos conferidos" required />
+            Documentos de transferência conferidos pela equipe.
+          </label>
+
+          <label for="noteField">Observação operacional mínima</label>
+          <textarea id="noteField" maxlength="120" data-note-label="Obs" placeholder="Apenas ponto logístico relevante para a transição."></textarea>
+          <small class="muted">Não inclua dados de paciente. Máx. 120 caracteres.</small>
+
+          <div class="form-actions">
+            <button type="submit">Registrar etapa</button>
+            <a href="../index.html">Voltar ao painel</a>
+          </div>
+        </form>
+
+        <div class="success" id="success" role="status" aria-live="polite"></div>
+      </div>
     </section>
   </main>
 
-  <script>
-    document.getElementById("form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      document.getElementById("success").classList.add("show");
-    });
-  </script>
+  <script src="../js/data.js"></script>
+  <script src="../js/metrics.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="../js/registro.js"></script>
 </body>
 </html>
