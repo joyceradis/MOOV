@@ -1,0 +1,11 @@
+name: Integracao IA - MOOV
+on: [push]
+jobs:
+  analise_da_ia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rodar a IA
+        env:
+          MINHA_CHAVE_IA: ${{ secrets.CHAVE_DA_IA }}
+        run: echo "Robô da IA ativado e seguro na nuvem!"
