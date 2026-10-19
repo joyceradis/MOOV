@@ -50,9 +50,18 @@ async function newContext({ viewport, blockLeaflet = false } = {}) {
   const context = await browser.newContext({ viewport: viewport || { width: 1366, height: 900 }, acceptDownloads: true });
   const external = [];
   const tiles = [];
+  const routes = [];
   await context.route(url => !url.href.startsWith(baseUrl), async route => {
     const request = route.request();
     external.push(request.url());
+    // Roteador (rotas pelas ruas): resposta local em "L", para verificar CSP, formato do pedido e desenho sem rede.
+    const osrm = /^https:\/\/router\.project-osrm\.org\/route\/v1\/driving\/(-?[\d.]+),(-?[\d.]+);(-?[\d.]+),(-?[\d.]+)\?overview=full&geometries=geojson$/.exec(request.url());
+    if (osrm) {
+      const [lng1, lat1, lng2, lat2] = osrm.slice(1).map(Number);
+      routes.push({ url: request.url(), referer: (await request.allHeaders()).referer || null });
+      const coordinates = [[lng1, lat1], [lng1, lat2], [lng2, lat2]];
+      return route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: 'Ok', routes: [{ geometry: { coordinates } }] }) });
+    }
     // Tiles do OSM recebem uma imagem local, para verificar CSP, carregamento e Referer sem rede.
     if (/^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/.test(request.url())) {
       tiles.push({ url: request.url(), referer: (await request.allHeaders()).referer || null });
@@ -67,7 +76,7 @@ async function newContext({ viewport, blockLeaflet = false } = {}) {
     window.__csp = [];
     document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
   });
-  return { context, external, tiles };
+  return { context, external, tiles, routes };
 }
 
 async function open(context, path) {
@@ -78,7 +87,7 @@ async function open(context, path) {
   return { page, errors };
 }
 
-const nonTileRequests = list => list.filter(url => !/^https:\/\/tile\.openstreetmap\.org\//.test(url));
+const nonTileRequests = list => list.filter(url => !/^https:\/\/(tile\.openstreetmap\.org|router\.project-osrm\.org)\//.test(url));
 
 async function assertText(page, selector, expected) {
   await page.waitForFunction(
@@ -91,9 +100,15 @@ async function assertText(page, selector, expected) {
 }
 
 test('painel: carrega sem erros nem violação de CSP; mapa esquemático com Leaflet local', async () => {
-  const { context, external, tiles } = await newContext();
+  const { context, external, tiles, routes } = await newContext();
   const { page, errors } = await open(context, '/index.html');
   await page.waitForSelector('#map.leaflet-container');
+  // Rotas pelas ruas: um pedido por par origem→destino em curso, só com coordenadas, sem Referer completo;
+  // linhas desenhadas a partir da resposta e guardadas para não pedir de novo.
+  await page.waitForFunction(() => document.querySelectorAll('#map path.leaflet-interactive').length > 0);
+  assert.ok(routes.length > 0 && routes.length <= 8);
+  for (const r of routes) assert.ok(r.referer === null || r.referer === `${baseUrl}/`, r.referer);
+  assert.ok(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('moov-routes-v1'))).length > 0));
   // Fundo do mapa: tiles do OpenStreetMap (sem chave), carregados e aceitos pela CSP,
   // com Referer só da origem (política de uso do OSM); atribuição visível.
   await page.waitForSelector('.leaflet-tile-loaded');

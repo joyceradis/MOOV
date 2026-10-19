@@ -13,9 +13,9 @@ const TYPES = {
 
 const ALLOWED_DIRS = ['css', 'js', 'pages', 'vendor'];
 
-// Mesma política das páginas, com connect-src restrito à própria origem (a API).
+// Mesma política das páginas: connect-src restrito à própria origem (a API) e ao roteador das rotas pelas ruas.
 export const PAGE_CSP = "default-src 'self'; script-src 'self'; style-src 'self'; " +
-  "img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self'; form-action 'none'; " +
+  "img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self' https://router.project-osrm.org; form-action 'none'; " +
   "base-uri 'none'; object-src 'none'; frame-ancestors 'none'";
 
 const HEADERS = {
