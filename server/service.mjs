@@ -116,6 +116,21 @@ export function createService(db, clock = makeClock(), options = {}) {
     return allRequests().map(r => ({ request: r, summary: M.summarize(r, ordered(r), now, config()) }));
   }
 
+  // Tudo o que o painel precisa numa chamada: unidades, frota, parâmetros e solicitações com etapas e resumo.
+  function dashboard() {
+    const now = clock.local();
+    return {
+      now,
+      config: config(),
+      units: units(),
+      fleet: fleet(),
+      requests: allRequests().map(r => {
+        const events = ordered(r);
+        return { ...r, events, summary: M.summarize(r, events, now, config()) };
+      })
+    };
+  }
+
   function getRequest(code) {
     const r = requestRow(code);
     if (!r) throw new DomainError(404, 'Solicitação não encontrada.');
@@ -280,7 +295,7 @@ export function createService(db, clock = makeClock(), options = {}) {
   }
 
   return {
-    createUser, login, authenticate, logout, units, fleet, summaries, getRequest, fleetSummary,
+    createUser, login, authenticate, logout, units, fleet, summaries, dashboard, getRequest, fleetSummary,
     appendEvent, verifyChain, createRequest, designate, issueLink, revokeLinks, frontView, frontRecord, busyVehicles,
     log, toCsv: M.toCsv, stageLabel: M.stageLabel, STAGES: M.STAGES
   };

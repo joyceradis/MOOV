@@ -24,7 +24,7 @@ Sem decisão explícita e responsáveis institucionais, **não** implementar ser
 
 ## Etapa C — Operacional (gate aprovado em 18/10/2026, #4)
 - [x] Fase 1: backend (API, banco, perfis, links temporários por código, trilha encadeada, exportação). Ver [ADR 0001](docs/adr/0001-fase-operacional-backend.md).
-- [ ] Fase 2: painel e ponta consumindo a API; tela de login.
+- [x] Fase 2: painel, regulação e ponta consumindo a API; tela de login; links da ponta gerados pela regulação; servidor entrega as páginas.
 - [ ] Fase 3: PostgreSQL, backup/restauração, observabilidade, ancoragem da trilha.
 - [ ] Fase 4: PWA da ponta com fila offline.
 - [ ] **Depende da fundadora:** hospedagem/custo, deploy, dados reais (LGPD), responsáveis institucionais.

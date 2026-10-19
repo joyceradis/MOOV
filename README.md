@@ -4,7 +4,7 @@ Ferramenta de apoio à **gestão** (pública ou privada) de frotas de ambulânci
 
 **Não é rastreamento de localização.** O mapa é esquemático: a posição exibida decorre da última etapa registrada (origem, trajeto, destino), não de GPS.
 
-> **Estado atual: protótipo estático com dados 100% fictícios.** Não há servidor, autenticação nem integração com regulação, SAMU 192 ou prontuário. Registros feitos nas páginas da ponta ficam **apenas no `localStorage` do navegador**. Não inserir dados reais de pacientes ou profissionais.
+> **Estado atual: dois modos, ambos com dados 100% fictícios.** Publicado como site estático (GitHub Pages), é uma **demonstração**: registros ficam apenas no `localStorage` do navegador. Rodando com o servidor (`node server/main.mjs serve`), funciona **conectado**: login, banco, trilha de auditoria e links da ponta (ver abaixo). Ainda **sem deploy**, sem integração com regulação, SAMU 192 ou prontuário. Não inserir dados reais de pacientes ou profissionais.
 
 ## O que funciona hoje
 
@@ -27,7 +27,7 @@ Ferramenta de apoio à **gestão** (pública ou privada) de frotas de ambulânci
 
 Parâmetros de alerta (retenção, tempo sem veículo) ficam em `MOOV_DATA.config` e são **parâmetros de gestão**, não regras clínicas.
 
-## Backend operacional (fase 1, sem deploy)
+## Modo conectado ao servidor (fases 1 e 2, sem deploy)
 
 Decisão de iniciar a fase operacional em [#4](https://github.com/joyceradis/MOOV/issues/4); arquitetura em [docs/adr/0001](docs/adr/0001-fase-operacional-backend.md).
 
@@ -35,10 +35,18 @@ Decisão de iniciar a fase operacional em [#4](https://github.com/joyceradis/MOO
 export MOOV_DB=moov-dev.sqlite           # banco local (SQLite); nunca dados reais nesta fase
 node server/main.mjs seed-demo           # carga do conjunto fictício
 MOOV_NEW_PASSWORD='uma-senha-longa-123' node server/main.mjs create-user ana gestor
-node server/main.mjs serve               # API em http://127.0.0.1:8787
+MOOV_NEW_PASSWORD='outra-senha-longa-456' node server/main.mjs create-user rita regulacao
+node server/main.mjs serve               # painel + API em http://127.0.0.1:8787
 ```
 
-API JSON com sessão por perfil (`admin`, `gestor`, `regulacao`), links temporários da ponta por código, trilha append-only encadeada por hash (`GET /api/audit/verify`) e exportação CSV. Testes em `tests/server.test.mjs`. O painel estático ainda não consome a API; isso fica para a fase 2.
+O servidor entrega o painel, as páginas e a API na mesma origem. As páginas detectam o servidor (`GET /api/health`) e passam a usá-lo:
+
+- **Painel e regulação** pedem login (sessão por perfil `admin`, `gestor`, `regulacao`, guardada só na aba). Os dados vêm de `GET /api/dashboard` e são atualizados a cada 30 s.
+- **Regulação** abre a solicitação, designa o veículo e gera os **links da ponta** (motorista, equipe, destino), com botão de copiar. O painel também gera links quando o usuário é da regulação.
+- **Ponta** abre pelo link (`pages/motorista.html#link=…`). O token fica no fragmento `#`, é removido da barra de endereço e nunca vai à URL do servidor.
+- Cada registro entra na trilha append-only encadeada por hash (`GET /api/audit/verify`), com autoria. A exportação da trilha vem do servidor e fica no log de acesso.
+
+Sem o servidor (GitHub Pages, `python3 -m http.server`), tudo segue como **demonstração** com dados fictícios e registro só no navegador. Testes: `tests/server.test.mjs` (API) e `tests/live.test.mjs` (Chromium contra o servidor real).
 
 ## Executar
 

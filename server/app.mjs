@@ -1,5 +1,7 @@
 // Camada HTTP do MOOV operacional: sem dependências, só JSON, cabeçalhos de segurança em toda resposta.
+// Com staticRoot, também entrega o painel e as páginas da ponta na mesma origem (fora de /api/).
 import { DomainError } from './service.mjs';
+import { serveStatic } from './static.mjs';
 
 const BODY_LIMIT = 16 * 1024;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -63,7 +65,7 @@ function credential(req, scheme) {
   return match && match[1] === scheme ? match[2] : null;
 }
 
-export function createApp(service, { trustProxy = false } = {}) {
+export function createApp(service, { trustProxy = false, staticRoot = null } = {}) {
   const failures = new Map();
 
   const clientIp = req => (trustProxy && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
@@ -109,6 +111,7 @@ export function createApp(service, { trustProxy = false } = {}) {
 
     ['GET', /^\/api\/units$/, req => (requireUser(req, READ), service.units())],
     ['GET', /^\/api\/fleet$/, req => (requireUser(req, READ), service.fleetSummary())],
+    ['GET', /^\/api\/dashboard$/, req => (requireUser(req, READ), service.dashboard())],
     ['GET', /^\/api\/requests$/, req => (requireUser(req, READ), service.summaries().map(x => x.summary))],
     ['GET', /^\/api\/requests\/([A-Z0-9-]{5,40})$/, (req, [code]) => (requireUser(req, READ), service.getRequest(code))],
 
@@ -153,6 +156,10 @@ export function createApp(service, { trustProxy = false } = {}) {
 
   return async function handler(req, res) {
     const path = new URL(req.url, 'http://localhost').pathname;
+    if (staticRoot && !path.startsWith('/api/') && (req.method === 'GET' || req.method === 'HEAD')) {
+      await serveStatic(staticRoot, req, res, path);
+      return;
+    }
     const route = routes.find(([method, pattern]) => method === req.method && pattern.test(path));
     if (!route) {
       const known = routes.some(([, pattern]) => pattern.test(path));

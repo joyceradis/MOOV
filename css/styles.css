@@ -341,7 +341,6 @@ button {
   line-height: 1.1;
   letter-spacing: -.02em;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .metrics span {
@@ -1241,6 +1240,112 @@ textarea:focus-visible {
 
 .form-shell .demo-notice {
   margin-bottom: 20px;
+}
+
+/* Modo conectado ao servidor */
+.demo-notice.live {
+  border-color: rgba(52, 211, 153, .35);
+  background: rgba(52, 211, 153, .1);
+  color: #c7f9e3;
+}
+.demo-notice.live strong { color: var(--green); }
+
+.auth-pending .app-shell,
+.auth-pending .form-shell,
+.auth-pending .skip-link {
+  display: none;
+}
+
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.login-card {
+  width: min(400px, 100%);
+}
+
+.login-card .brand-mark {
+  margin-bottom: 18px;
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.login-card > .muted {
+  margin: 6px 0 4px;
+  font-size: 14px;
+}
+
+.login-card .form-actions button {
+  width: 100%;
+}
+
+.login-error {
+  min-height: 1.2em;
+  margin: 12px 0 0;
+  color: #fb7185;
+  font-size: 13px;
+}
+
+.login-error:empty {
+  display: none;
+}
+
+.user-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.link-list {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.link-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-soft);
+}
+
+.link-list strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.link-list .ghost-button {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.success .front-links {
+  margin-top: 12px;
+}
+
+.front-links-note {
+  margin: 14px 0 0;
 }
 
 /* ---------- Responsivo ---------- */
