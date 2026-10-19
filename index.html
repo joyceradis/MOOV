@@ -29,38 +29,6 @@
         </p>
       </section>
 
-      <section class="metrics" aria-label="Indicadores da frota municipal no recorte filtrado">
-        <article>
-          <small>Solicitações</small>
-          <strong id="kpiTotal">--</strong>
-          <span id="kpiTotalDetail">frota municipal</span>
-        </article>
-        <article>
-          <small>Tempo médio de resposta</small>
-          <strong id="kpiResponse">--</strong>
-          <span id="kpiResponseDetail">solicitação → chegada à origem</span>
-        </article>
-        <article>
-          <small>Tempo médio até recebimento</small>
-          <strong id="kpiTotalTime">--</strong>
-          <span id="kpiTotalTimeDetail">solicitações concluídas</span>
-        </article>
-        <article>
-          <small>Veículo retido no destino</small>
-          <strong id="kpiRetention">--</strong>
-          <span id="kpiRetentionDetail">minutos acumulados</span>
-        </article>
-        <article>
-          <small>Km registrados</small>
-          <strong id="kpiKm">--</strong>
-          <span id="kpiKmDetail">saída → chegada (hodômetro)</span>
-        </article>
-        <article>
-          <small>Lastro documental</small>
-          <strong id="kpiComplete">--</strong>
-          <span id="kpiCompleteDetail">registros exigidos presentes</span>
-        </article>
-      </section>
 
       <section class="filter-card" aria-label="Filtros">
         <div class="section-line">
@@ -119,12 +87,45 @@
         </div>
 
         <div class="topbar-actions">
-          <button id="exportAudit" type="button">Exportar trilha de auditoria (CSV)</button>
+          <button id="exportAudit" type="button" class="ghost-button">Exportar trilha de auditoria (CSV)</button>
           <button id="exportSummary" type="button" class="ghost-button">Exportar resumo por solicitação (CSV)</button>
           <button id="printReport" type="button" class="ghost-button">Relatório para impressão / PDF</button>
-          <a class="ghost-button" href="./pages/regulacao.html">Página da regulação</a>
+          <a class="primary-button" href="./pages/regulacao.html">Página da regulação</a>
         </div>
       </header>
+
+      <section class="metrics" aria-label="Indicadores da frota municipal no recorte filtrado">
+        <article>
+          <small>Solicitações</small>
+          <strong id="kpiTotal">--</strong>
+          <span id="kpiTotalDetail">frota municipal</span>
+        </article>
+        <article>
+          <small>Tempo médio de resposta</small>
+          <strong id="kpiResponse">--</strong>
+          <span id="kpiResponseDetail">solicitação → chegada à origem</span>
+        </article>
+        <article>
+          <small>Tempo médio até recebimento</small>
+          <strong id="kpiTotalTime">--</strong>
+          <span id="kpiTotalTimeDetail">solicitações concluídas</span>
+        </article>
+        <article>
+          <small>Veículo retido no destino</small>
+          <strong id="kpiRetention">--</strong>
+          <span id="kpiRetentionDetail">minutos acumulados</span>
+        </article>
+        <article>
+          <small>Km registrados</small>
+          <strong id="kpiKm">--</strong>
+          <span id="kpiKmDetail">saída → chegada (hodômetro)</span>
+        </article>
+        <article>
+          <small>Lastro documental</small>
+          <strong id="kpiComplete">--</strong>
+          <span id="kpiCompleteDetail">registros exigidos presentes</span>
+        </article>
+      </section>
 
       <section class="map-card no-print">
         <div id="map" role="region" aria-label="Mapa esquemático de origens e destinos das solicitações"></div>

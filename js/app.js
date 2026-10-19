@@ -234,7 +234,7 @@ function initMap() {
     document.body.prepend(banner);
     return;
   }
-  state.map = L.map("map", { zoomControl: false }).setView([-20.3155, -40.3128], 12);
+  state.map = L.map("map", { zoomControl: false, zoomSnap: 0.25 }).setView([-20.3155, -40.3128], 12);
   L.control.zoom({ position: "bottomright" }).addTo(state.map);
   // Tiles do OpenStreetMap (sem chave). A política de uso do OSM exige atribuição e Referer válido:
   // as páginas usam no-referrer, então só as imagens de tile enviam a origem.
@@ -245,7 +245,7 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a>'
   }).addTo(state.map);
 
-  state.map.fitBounds(L.latLngBounds(MOOV_DATA.units.map(u => u.coords)), { padding: [60, 60] });
+  state.map.fitBounds(L.latLngBounds(MOOV_DATA.units.map(u => u.coords)), { padding: [48, 48] });
 
   MOOV_DATA.units.forEach(unit => {
     const label = unit.type === "destino" ? "H" : unit.type === "origem" ? "P" : "•";
