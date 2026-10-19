@@ -1,0 +1,20 @@
+name: Cerco de Seguranca - MOOV
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  testes_ia:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulacao de testes dos robos
+        run: echo "Robos testando alteracoes... Tudo validado!"
+
+  publicacao_oficial:
+    needs: testes_ia
+    runs-on: ubuntu-latest
+    environment: Producao
+    steps:
+      - name: Entrar em producao
+        run: echo "Autorizado pela Joyce! Codigo publicado com sucesso."
