@@ -9,6 +9,7 @@
     "test:static": "node --test tests/smoke.test.mjs",
     "test:browser": "node --test tests/browser.test.mjs",
     "test:server": "node --test tests/server.test.mjs",
+    "test:live": "node --test tests/live.test.mjs",
     "server": "node server/main.mjs serve"
   },
   "devDependencies": {

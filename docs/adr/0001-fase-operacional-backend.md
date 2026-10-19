@@ -41,12 +41,12 @@ Backend próprio em `server/`:
 4. **Responsáveis**: gestão de usuários, resposta a incidentes, backup e restauração testados.
 
 ## Próximas fases técnicas
-- **Fase 2:** painel e páginas da ponta consumindo a API (modo demonstração estático mantido); tela de login.
+- **Fase 2 (implementada):** painel e páginas da ponta consumindo a API (modo demonstração estático mantido); tela de login; `GET /api/dashboard`; servidor entrega as páginas na mesma origem, com CSP `connect-src 'self'`.
 - **Fase 3:** adaptador PostgreSQL, backup/restauração, observabilidade, rotação de logs e retenção.
 - **Fase 4:** PWA da ponta com fila offline e reenvio idempotente.
 
 ## Consequências
 - A trilha é confiável contra alteração pela aplicação e detectável contra alteração direta, mas **não** contra quem reescreve a cadeia inteira com acesso ao banco. Para isso: ancoragem periódica do `head` da cadeia fora do banco (fase 3).
-- O token do link é um segredo ao portador. Mitigações: expiração curta, revogação, escopo de um código e um perfil, nunca na URL do servidor (o front lerá do fragmento `#`, fase 2).
+- O token do link é um segredo ao portador. Mitigações: expiração curta, revogação, escopo de um código e um perfil, nunca na URL do servidor (o front lê do fragmento `#` e o remove da barra de endereço).
 - `node:sqlite` é experimental no Node 22. Aceitável para dev e homologação; produção usará PostgreSQL.
 - Com o conjunto fictício (maio/2026) e o relógio real, as retenções em aberto aparecem enormes. É esperado em desenvolvimento.

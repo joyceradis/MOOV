@@ -1,16 +1,22 @@
-// Painel da gestão: lê o conjunto fictício + registros locais, calcula indicadores e desenha mapa esquemático.
+// Painel da gestão: calcula indicadores e desenha mapa esquemático.
+// Conectado ao servidor (MOOV_API), lê /api/dashboard após login; senão, conjunto fictício + registros locais.
 const M = window.MOOV_METRICS;
 const S = window.MOOV_STORE;
+const API = window.MOOV_API;
 
 const ELEMENTS = {};
 const state = { selectedCode: null, map: null, layers: [] };
+// Fonte de unidades, frota e parâmetros: conjunto fictício ou servidor.
+let DATA = MOOV_DATA;
+// Modo conectado: usuário logado e último retrato do servidor.
+const live = { user: null, dashboard: null };
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 }
 
 function unitName(id) {
-  return MOOV_DATA.units.find(unit => unit.id === id)?.name || "—";
+  return DATA.units.find(unit => unit.id === id)?.name || "—";
 }
 
 function formatMin(value) {
@@ -19,6 +25,9 @@ function formatMin(value) {
   }
   if (value < 60) {
     return `${value} min`;
+  }
+  if (value >= 2 * 1440) {
+    return `${Math.floor(value / 1440)} d ${Math.floor((value % 1440) / 60)} h`;
   }
   return `${Math.floor(value / 60)} h ${String(value % 60).padStart(2, "0")} min`;
 }
@@ -34,11 +43,15 @@ function flowLabel(flowType) {
 // ---------- dados derivados ----------
 
 function computeAll() {
+  if (live.dashboard) {
+    const rows = live.dashboard.requests.map(request => ({ request, events: request.events, summary: request.summary }));
+    return { rows, now: live.dashboard.now, localCount: 0 };
+  }
   const local = S.loadEvents();
-  const now = S.demoNow(MOOV_DATA);
-  const rows = S.allRequests(MOOV_DATA, local).map(request => {
+  const now = S.demoNow(DATA);
+  const rows = S.allRequests(DATA, local).map(request => {
     const events = M.eventsFor(request, local);
-    return { request, events, summary: M.summarize(request, events, now, MOOV_DATA.config) };
+    return { request, events, summary: M.summarize(request, events, now, DATA.config) };
   });
   return { rows, now, localCount: local.length };
 }
@@ -148,7 +161,13 @@ function renderSelected(row) {
       <div><small>Próxima etapa</small><b>${escapeHtml(s.next ? s.next.label : "Concluída")}</b></div>
       <div><small>Lastro</small><b>${s.completeness.total ? `${s.completeness.done}/${s.completeness.total}` : "—"}</b></div>
     </div>
-    ${s.flowType === "municipal" ? frontLinks(s.code) : ""}`;
+    ${s.flowType === "municipal" && !live.user ? frontLinks(s.code) : ""}`;
+  if (s.flowType === "municipal" && live.user) {
+    // Conectado: links da ponta são individuais e emitidos pela regulação.
+    ELEMENTS.selectedTransfer.append(live.user.role === "regulacao"
+      ? API.frontLinksBlock(s.code)
+      : API.el("p", { class: "muted small front-links-note", text: "Os links da ponta (motorista, equipe, destino) são emitidos pela regulação." }));
+  }
 
   ELEMENTS.timelineCode.textContent = s.code;
   ELEMENTS.timeline.className = "chronology";
@@ -160,7 +179,7 @@ function renderSelected(row) {
       <li class="done">
         <time datetime="${escapeHtml(event.at)}">${escapeHtml(formatTime(event.at))}</time>
         <strong>${escapeHtml(stage.label)}</strong>
-        <span>${escapeHtml(stage.profile)} · ${escapeHtml(event.source)}${Number.isFinite(event.km) ? ` · km ${event.km}` : ""}${deltaText}</span>
+        <span>${escapeHtml(stage.profile)} · ${escapeHtml(event.actor || event.source)}${Number.isFinite(event.km) ? ` · km ${event.km}` : ""}${deltaText}</span>
         ${event.note ? `<em>${escapeHtml(event.note)}</em>` : ""}
       </li>`;
   });
@@ -199,7 +218,7 @@ function renderBottlenecks(allRows) {
       </div>`).join("")
     : `<p class="muted">Sem pares de etapas registrados no recorte.</p>`;
 
-  const retention = M.groupRetention(rows.map(r => r.summary), MOOV_DATA.units);
+  const retention = M.groupRetention(rows.map(r => r.summary), DATA.units);
   ELEMENTS.retentionList.innerHTML = retention.length
     ? retention.map(r => `
       <div class="bottleneck-item">
@@ -210,7 +229,7 @@ function renderBottlenecks(allRows) {
 }
 
 function renderFleet(all) {
-  const fleet = M.fleetSummary(MOOV_DATA.fleet, all.rows.map(r => r.summary), all.rows.map(r => r.events), all.now);
+  const fleet = M.fleetSummary(DATA.fleet, all.rows.map(r => r.summary), all.rows.map(r => r.events), all.now);
   ELEMENTS.fleetTable.querySelector("tbody").innerHTML = fleet.map(v => `
     <tr>
       <th scope="row">${escapeHtml(v.id)}</th>
@@ -245,9 +264,9 @@ function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a>'
   }).addTo(state.map);
 
-  state.map.fitBounds(L.latLngBounds(MOOV_DATA.units.map(u => u.coords)), { padding: [48, 48] });
+  state.map.fitBounds(L.latLngBounds(DATA.units.map(u => u.coords)), { padding: [48, 48] });
 
-  MOOV_DATA.units.forEach(unit => {
+  DATA.units.forEach(unit => {
     const label = unit.type === "destino" ? "H" : unit.type === "origem" ? "P" : "•";
     L.marker(unit.coords, {
       icon: L.divIcon({ className: "", html: `<div class="unit-marker">${label}</div>`, iconSize: [38, 38], iconAnchor: [19, 19] }),
@@ -287,8 +306,8 @@ function ambulanceSvg(flowType, label, alert) {
 
 // Ponto esquemático: origem até o embarque, meio do trajeto após a saída, destino após a chegada.
 function schematicPoint(summary) {
-  const origin = MOOV_DATA.units.find(u => u.id === summary.originId)?.coords;
-  const destination = MOOV_DATA.units.find(u => u.id === summary.destinationId)?.coords;
+  const origin = DATA.units.find(u => u.id === summary.originId)?.coords;
+  const destination = DATA.units.find(u => u.id === summary.destinationId)?.coords;
   if (!origin || !destination || !summary.vehicleId || summary.stage === "liberado") {
     return null;
   }
@@ -306,8 +325,8 @@ function drawMap(rows, all) {
   state.layers = [];
 
   rows.forEach(({ summary: s }) => {
-    const origin = MOOV_DATA.units.find(u => u.id === s.originId)?.coords;
-    const destination = MOOV_DATA.units.find(u => u.id === s.destinationId)?.coords;
+    const origin = DATA.units.find(u => u.id === s.originId)?.coords;
+    const destination = DATA.units.find(u => u.id === s.destinationId)?.coords;
     if (!origin || !destination) return;
     const color = s.flowType === "samu" ? "#ffb13b" : "#25e1dc";
     const select = () => selectRequest(s.code, all.rows);
@@ -347,8 +366,18 @@ function download(filename, text) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function exportAudit() {
+async function exportAudit() {
   const { rows, now } = computeAll();
+  if (live.user) {
+    // Conectado: a trilha vem do servidor, com autoria, e a exportação fica registrada no log de acesso.
+    try {
+      const csv = await API.call("GET", "/api/export/audit.csv");
+      download(`moov-trilha-auditoria-${now.replace(/[:T]/g, "")}.csv`, String(csv).replace(/^﻿/, ""));
+    } catch (error) {
+      ELEMENTS.localCount.textContent = `Exportação não concluída: ${error.message}`;
+    }
+    return;
+  }
   const lines = [["codigo", "regulacao", "fluxo", "veiculo", "origem", "destino", "etapa", "horario", "perfil", "km", "fonte", "observacao"]];
   filtered(rows).forEach(({ request, events }) => events.forEach(e => lines.push([
     request.code, request.regulationCode, request.flowType, request.vehicleId || "", unitName(request.originId),
@@ -366,7 +395,7 @@ function exportSummary() {
     s.totalMin, s.finished ? "sim" : "nao", s.responseMin ?? "", s.retentionMin ?? "", s.retentionOpen ? "sim" : "nao",
     s.km ?? "", s.completeness.done, s.completeness.total, s.completeness.missing.join(" | "), s.alerts.join(" | ")
   ]));
-  download(`moov-resumo-solicitacoes-DEMO-${now.replace(/[:T]/g, "")}.csv`, M.toCsv(lines));
+  download(`moov-resumo-solicitacoes-${live.user ? "" : "DEMO-"}${now.replace(/[:T]/g, "")}.csv`, M.toCsv(lines));
 }
 
 // ---------- relatório para impressão ----------
@@ -386,7 +415,7 @@ function renderPrintHeader() {
     <h1>MOOV · Relatório de governança da frota</h1>
     <p>Recorte: fluxo ${escapeHtml(selectedText(ELEMENTS.flowType))} · etapa ${escapeHtml(selectedText(ELEMENTS.stageFilter))} ·
       veículo ${escapeHtml(selectedText(ELEMENTS.vehicleFilter))} · destino ${escapeHtml(selectedText(ELEMENTS.destinationFilter))}</p>
-    <p>Relógio da demonstração: ${escapeHtml(ELEMENTS.demoClock.textContent)} · gerado em ${escapeHtml(generated)}</p>
+    <p>${live.user ? "Horário do servidor" : "Relógio da demonstração"}: ${escapeHtml(ELEMENTS.demoClock.textContent)} · gerado em ${escapeHtml(generated)}</p>
     <div class="print-kpis">${kpis}</div>
     <p class="print-small">Definições e limites metodológicos ao final. SAMU 192 fora dos indicadores da frota municipal.
       A tabela de frota considera todas as solicitações do conjunto, independentemente do recorte.</p>`;
@@ -398,7 +427,9 @@ function refreshDashboard() {
   const all = computeAll();
   const rows = filtered(all.rows);
   ELEMENTS.demoClock.textContent = formatTime(all.now);
-  ELEMENTS.localCount.textContent = all.localCount ? `${all.localCount} registro(s) local(is) neste navegador.` : "Nenhum registro local.";
+  ELEMENTS.localCount.textContent = live.user
+    ? `Conectado como ${live.user.username} · ${API.ROLE_LABEL[live.user.role] || live.user.role}`
+    : all.localCount ? `${all.localCount} registro(s) local(is) neste navegador.` : "Nenhum registro local.";
   updateKPIs(rows);
   renderRequestTable(rows, all.rows.length);
   renderBottlenecks(rows);
@@ -412,7 +443,31 @@ function fillSelect(select, options) {
   select.insertAdjacentHTML("beforeend", options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join(""));
 }
 
-function initApp() {
+// Busca o retrato atual no servidor e redesenha.
+async function reloadLive() {
+  try {
+    live.dashboard = await API.call("GET", "/api/dashboard");
+    refreshDashboard();
+  } catch (error) {
+    ELEMENTS.localCount.textContent = `Não foi possível atualizar: ${error.message}`;
+  }
+}
+
+// Textos e controles do modo conectado (o HTML estático descreve a demonstração).
+function applyLiveChrome(user) {
+  document.body.classList.add("is-live");
+  const notice = document.querySelector(".demo-notice");
+  notice.classList.add("live");
+  notice.replaceChildren(API.el("strong", { text: "Conectado ao servidor MOOV" }),
+    " · cada registro entra na trilha de auditoria e aparece para toda a equipe.");
+  document.querySelector(".topbar span").textContent = "Ambiente conectado";
+  document.getElementById("clockLabel").textContent = "Horário do servidor";
+  ELEMENTS.resetDemo.textContent = "Sair";
+  // Exportação da trilha completa é da gestão e da administração.
+  ELEMENTS.exportAudit.hidden = user.role === "regulacao";
+}
+
+async function initApp() {
   [
     "flowType", "stageFilter", "vehicleFilter", "destinationFilter", "resetFilters", "resetDemo", "demoClock", "localCount",
     "kpiTotal", "kpiTotalDetail", "kpiResponse", "kpiResponseDetail", "kpiTotalTime", "kpiTotalTimeDetail", "kpiRetention",
@@ -421,11 +476,23 @@ function initApp() {
     "exportSummary", "printReport", "cfgRetention", "cfgUnassigned"
   ].forEach(id => { ELEMENTS[id] = document.getElementById(id); });
 
+  if (await API.detect()) {
+    live.user = await API.ensureLogin(["admin", "gestor", "regulacao"], "Painel de governança da frota.");
+    try {
+      live.dashboard = await API.call("GET", "/api/dashboard");
+    } catch (error) {
+      ELEMENTS.localCount.textContent = `Não foi possível carregar os dados: ${error.message}`;
+      return;
+    }
+    DATA = { units: live.dashboard.units, fleet: live.dashboard.fleet, config: live.dashboard.config };
+    applyLiveChrome(live.user);
+  }
+
   fillSelect(ELEMENTS.stageFilter, M.STAGES.map(s => [s.key, s.label]));
-  fillSelect(ELEMENTS.vehicleFilter, MOOV_DATA.fleet.map(v => [v.id, `${v.id} · ${flowLabel(v.flowType)}`]));
-  fillSelect(ELEMENTS.destinationFilter, MOOV_DATA.units.filter(u => u.type === "destino").map(u => [u.id, u.name]));
-  ELEMENTS.cfgRetention.textContent = MOOV_DATA.config.retentionAlertMin;
-  ELEMENTS.cfgUnassigned.textContent = MOOV_DATA.config.unassignedAlertMin;
+  fillSelect(ELEMENTS.vehicleFilter, DATA.fleet.map(v => [v.id, `${v.id} · ${flowLabel(v.flowType)}`]));
+  fillSelect(ELEMENTS.destinationFilter, DATA.units.filter(u => u.type === "destino").map(u => [u.id, u.name]));
+  ELEMENTS.cfgRetention.textContent = DATA.config.retentionAlertMin;
+  ELEMENTS.cfgUnassigned.textContent = DATA.config.unassignedAlertMin;
 
   initMap();
 
@@ -435,6 +502,10 @@ function initApp() {
     refreshDashboard();
   });
   ELEMENTS.resetDemo.addEventListener("click", () => {
+    if (live.user) {
+      API.logout();
+      return;
+    }
     S.resetDemo();
     refreshDashboard();
   });
@@ -450,13 +521,18 @@ function initApp() {
     renderPrintHeader();
   });
 
-  // Registros feitos em outra aba (páginas da ponta) atualizam o painel.
-  window.addEventListener("storage", event => {
-    if (event.key === null || event.key.startsWith("moov-demo-")) refreshDashboard();
-  });
   window.addEventListener("resize", () => state.map?.invalidateSize());
-  // O relógio da demonstração avança após o primeiro registro local; recalcula a cada minuto.
-  setInterval(refreshDashboard, 60000);
+  if (live.user) {
+    // Registros da regulação e da ponta chegam pelo servidor: atualiza a cada 30 s.
+    setInterval(reloadLive, 30000);
+  } else {
+    // Registros feitos em outra aba (páginas da ponta) atualizam o painel.
+    window.addEventListener("storage", event => {
+      if (event.key === null || event.key.startsWith("moov-demo-")) refreshDashboard();
+    });
+    // O relógio da demonstração avança após o primeiro registro local; recalcula a cada minuto.
+    setInterval(refreshDashboard, 60000);
+  }
 
   refreshDashboard();
 }

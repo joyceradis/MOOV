@@ -39,7 +39,7 @@ test('HTML: sem script inline, sem atributo style, sem escape literal e com CSP 
     assert.doesNotMatch(html, /\son[a-z]+="/, `${file}: handler inline`);
     assert.doesNotMatch(html, /\\n/, `${file}: \\n literal`);
     const csp = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)?.[1] || '';
-    for (const directive of ["script-src 'self'", "connect-src 'none'", "form-action 'none'", "object-src 'none'", "base-uri 'none'"]) {
+    for (const directive of ["script-src 'self'", "connect-src 'self'", "form-action 'none'", "object-src 'none'", "base-uri 'none'"]) {
       assert.ok(csp.includes(directive), `${file}: CSP sem ${directive}`);
     }
     assert.doesNotMatch(html, /https?:\/\/(unpkg|cdnjs|fonts\.googleapis)/, `${file}: dependência de CDN`);
