@@ -5,7 +5,7 @@ const S = window.MOOV_STORE;
 const API = window.MOOV_API;
 
 const ELEMENTS = {};
-const state = { selectedCode: null, map: null, layers: [] };
+const state = { selectedCode: null, map: null, layers: [], markers: new Map() };
 // Fonte de unidades, frota e parâmetros: conjunto fictício ou servidor.
 let DATA = MOOV_DATA;
 // Modo conectado: usuário logado e último retrato do servidor.
@@ -203,6 +203,10 @@ function selectRequest(code, rows) {
     tr.classList.toggle("selected", on);
     tr.querySelector("[data-select]")?.setAttribute("aria-pressed", String(on));
   });
+  ELEMENTS.fleetLive.querySelectorAll("[data-focus]").forEach(button => {
+    button.classList.toggle("selected", button.dataset.focus === code);
+  });
+  markSelectedMarker(code);
 }
 
 // ---------- gargalos e frota ----------
@@ -242,7 +246,28 @@ function renderFleet(all) {
     </tr>`).join("");
 }
 
-// ---------- mapa esquemático ----------
+// ---------- ao vivo: mapa e frota municipal ----------
+
+// Ícone de ambulância (vista lateral), herda a cor do marcador; a cruz usa a classe .cross.
+const AMBULANCE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M2.5 7.2c0-.94.76-1.7 1.7-1.7h9.6c.94 0 1.7.76 1.7 1.7V9h2.9c.55 0 1.06.26 1.38.7l1.9 2.6c.2.28.32.62.32.97V16c0 .55-.45 1-1 1h-.85a2.6 2.6 0 0 0-5.1 0H9.95a2.6 2.6 0 0 0-5.1 0H3.5c-.55 0-1-.45-1-1Z" fill="currentColor"/>
+  <path class="cross" d="M7.7 7.6h1.9v1.9h1.9v1.9H9.6v1.9H7.7v-1.9H5.8V9.5h1.9Z"/>
+  <path class="window" d="M16.2 10.3h2.1l1.5 2.1h-3.6Z"/>
+  <circle cx="7.4" cy="17.3" r="1.7" fill="currentColor"/><circle cx="17.6" cy="17.3" r="1.7" fill="currentColor"/>
+</svg>`;
+
+const ROUTE = { municipal: "#0d9488", alert: "#dc2626", samu: "#94a3b8", casing: "#ffffff" };
+
+function unitCoords(id) {
+  return DATA.units.find(u => u.id === id)?.coords;
+}
+
+// Espaço ocupado pelos painéis sobre o mapa (desktop), para enquadrar as unidades na área livre.
+function mapPadding() {
+  return window.innerWidth > 1100
+    ? { paddingTopLeft: [380, 90], paddingBottomRight: [440, 50] }
+    : { padding: [36, 36] };
+}
 
 function initMap() {
   if (typeof L === "undefined") {
@@ -254,60 +279,44 @@ function initMap() {
     return;
   }
   state.map = L.map("map", { zoomControl: false, zoomSnap: 0.25 }).setView([-20.3155, -40.3128], 12);
-  L.control.zoom({ position: "bottomright" }).addTo(state.map);
+  L.control.zoom({ position: "topright" }).addTo(state.map);
   // Tiles do OpenStreetMap (sem chave). A política de uso do OSM exige atribuição e Referer válido:
   // as páginas usam no-referrer, então só as imagens de tile enviam a origem.
-  // O visual escuro vem de filtro CSS em .leaflet-tile-pane.
+  // O visual claro e dessaturado vem de filtro CSS em .leaflet-tile-pane.
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     referrerPolicy: "strict-origin-when-cross-origin",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a>'
   }).addTo(state.map);
 
-  state.map.fitBounds(L.latLngBounds(DATA.units.map(u => u.coords)), { padding: [48, 48] });
+  state.map.fitBounds(L.latLngBounds(DATA.units.map(u => u.coords)), mapPadding());
 
   DATA.units.forEach(unit => {
-    const label = unit.type === "destino" ? "H" : unit.type === "origem" ? "P" : "•";
+    const label = unit.type === "destino" ? "H" : unit.type === "origem" ? "PA" : "";
+    const size = unit.type === "ocorrencia" ? 14 : 30;
     L.marker(unit.coords, {
-      icon: L.divIcon({ className: "", html: `<div class="unit-marker">${label}</div>`, iconSize: [38, 38], iconAnchor: [19, 19] }),
+      icon: L.divIcon({ className: "", html: `<div class="unit-marker ${unit.type}">${label}</div>`, iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
       title: unit.name,
       keyboard: true
     }).addTo(state.map).bindPopup(`<strong>${escapeHtml(unit.name)}</strong>`);
   });
 }
 
-function ambulanceSvg(flowType, label, alert) {
-  const isSamu = flowType === "samu";
-  const body = isSamu ? "#fff7e8" : "#eaffff";
-  const stripe = isSamu ? "#ff7a32" : "#25e1dc";
-  const cross = isSamu ? "#e84a4a" : "#169d9a";
-  const safe = escapeHtml(label);
+// Marcador do veículo: municipal grande e pulsante; SAMU 192 pequeno e neutro.
+function vehicleHtml(s, selected) {
+  const kind = s.flowType === "samu" ? "samu" : "municipal";
   return `
-    <div class="vehicle-wrap ${flowType}${alert ? " alert" : ""}">
-      <div class="vehicle-halo ${flowType}${alert ? " alert" : ""}"></div>
-      <svg class="ambulance-svg" viewBox="0 0 120 86" aria-hidden="true">
-        <g transform="rotate(-18 60 43)">
-          <path d="M12 43 Q15 28 31 25 H67 Q79 25 87 36 L101 38 Q110 40 112 51 V62 H102 Q99 73 88 73 Q77 73 74 62 H45 Q42 73 31 73 Q20 73 17 62 H10 V51 Q10 47 12 43Z" fill="${body}" stroke="rgba(255,255,255,.9)" stroke-width="3"/>
-          <path d="M68 30 H84 L95 41 H68Z" fill="#bfe8ff" opacity=".9"/>
-          <path d="M22 35 H62 V57 H18 L20 43 Q21 38 22 35Z" fill="#f7ffff"/>
-          <rect x="20" y="49" width="82" height="7" rx="3.5" fill="${stripe}" opacity=".96"/>
-          <rect x="38" y="34" width="8" height="22" rx="2" fill="${cross}"/>
-          <rect x="31" y="41" width="22" height="8" rx="2" fill="${cross}"/>
-          <circle cx="31" cy="62" r="8" fill="#172536" stroke="#dceeff" stroke-width="3"/>
-          <circle cx="88" cy="62" r="8" fill="#172536" stroke="#dceeff" stroke-width="3"/>
-          <circle class="beacon" cx="47" cy="22" r="5" fill="#ff3159"/>
-          <circle class="beacon right" cx="60" cy="22" r="5" fill="#2a9dff"/>
-          <text x="58" y="47" text-anchor="middle" font-size="14" font-weight="900" fill="#102336">${isSamu ? "SAMU" : "PMV"}</text>
-        </g>
-      </svg>
-      <div class="vehicle-label">${safe}</div>
+    <div class="vehicle-wrap ${kind}${s.alerts.length ? " alert" : ""}${selected ? " selected" : ""}">
+      ${kind === "municipal" ? '<span class="vehicle-pulse"></span>' : ""}
+      <span class="vehicle-dot">${AMBULANCE_ICON}</span>
+      <span class="vehicle-label">${escapeHtml(s.vehicleId)}</span>
     </div>`;
 }
 
 // Ponto esquemático: origem até o embarque, meio do trajeto após a saída, destino após a chegada.
 function schematicPoint(summary) {
-  const origin = DATA.units.find(u => u.id === summary.originId)?.coords;
-  const destination = DATA.units.find(u => u.id === summary.destinationId)?.coords;
+  const origin = unitCoords(summary.originId);
+  const destination = unitCoords(summary.destinationId);
   if (!origin || !destination || !summary.vehicleId || summary.stage === "liberado") {
     return null;
   }
@@ -317,39 +326,125 @@ function schematicPoint(summary) {
   return origin;
 }
 
-function drawMap(rows, all) {
+function addLine(coords, options, onClick) {
+  const line = L.polyline(coords, options).addTo(state.map);
+  if (onClick) line.on("click", onClick);
+  state.layers.push(line);
+  return line;
+}
+
+// Mapa ao vivo: todas as solicitações em curso (independe dos filtros da gestão).
+// Rota municipal no estilo de navegação: trecho percorrido cheio, restante tracejado.
+function drawMap(all) {
   if (!state.map) {
     return;
   }
   state.layers.forEach(layer => layer.remove());
   state.layers = [];
+  state.markers = new Map();
 
-  rows.forEach(({ summary: s }) => {
-    const origin = DATA.units.find(u => u.id === s.originId)?.coords;
-    const destination = DATA.units.find(u => u.id === s.destinationId)?.coords;
-    if (!origin || !destination) return;
-    const color = s.flowType === "samu" ? "#ffb13b" : "#25e1dc";
+  all.rows.forEach(({ summary: s }) => {
+    const origin = unitCoords(s.originId);
+    const destination = unitCoords(s.destinationId);
+    if (!origin || !destination || s.stage === "liberado") return;
     const select = () => selectRequest(s.code, all.rows);
-    const line = L.polyline([origin, destination], {
-      color,
-      weight: 4,
-      opacity: s.stage === "liberado" ? 0.35 : 0.9,
-      dashArray: s.alerts.length ? "8, 8" : "2, 8"
-    }).addTo(state.map).on("click", select);
-    state.layers.push(line);
-
     const point = schematicPoint(s);
+
+    if (s.flowType === "samu") {
+      addLine([origin, destination], { color: ROUTE.samu, weight: 3, opacity: .7, dashArray: "4 8" }, select);
+    } else {
+      const color = s.alerts.length ? ROUTE.alert : ROUTE.municipal;
+      const done = point ? [origin, point] : [];
+      const rest = point ? [point, destination] : [origin, destination];
+      if (done.length) {
+        addLine(done, { color: ROUTE.casing, weight: 10, opacity: .95 });
+        addLine(done, { color, weight: 6, opacity: 1 }, select);
+      }
+      addLine(rest, { color: ROUTE.casing, weight: 8, opacity: .8 });
+      addLine(rest, { color, weight: 4, opacity: point ? .55 : .4, dashArray: "1 9", lineCap: "round" }, select);
+    }
+
     if (point) {
+      const samu = s.flowType === "samu";
+      const size = samu ? 30 : 46;
       const marker = L.marker(point, {
-        icon: L.divIcon({ className: "", html: ambulanceSvg(s.flowType, s.vehicleId, s.alerts.length > 0), iconSize: [74, 60], iconAnchor: [37, 30] }),
+        icon: L.divIcon({ className: "", html: vehicleHtml(s, s.code === state.selectedCode), iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
         title: `${s.vehicleId} · ${s.code} · ${s.stageLabel} (posição esquemática)`,
         keyboard: true,
-        zIndexOffset: 1000
+        zIndexOffset: samu ? 500 : 1000
       }).addTo(state.map);
       marker.on("click", select);
       state.layers.push(marker);
+      state.markers.set(s.code, marker);
     }
   });
+}
+
+// Centraliza o mapa na solicitação (veículo ou rota).
+function focusRequest(code, rows) {
+  if (!state.map) return;
+  const marker = state.markers?.get(code);
+  if (marker) {
+    state.map.flyTo(marker.getLatLng(), Math.max(state.map.getZoom(), 14), { duration: .6 });
+    return;
+  }
+  const s = rows.find(r => r.summary.code === code)?.summary;
+  const route = s && [unitCoords(s.originId), unitCoords(s.destinationId)].filter(Boolean);
+  if (route?.length) state.map.flyToBounds(L.latLngBounds(route), { ...mapPadding(), duration: .6 });
+}
+
+function markSelectedMarker(code) {
+  state.markers?.forEach((marker, key) => {
+    marker.getElement()?.querySelector(".vehicle-wrap")?.classList.toggle("selected", key === code);
+  });
+}
+
+// Situação de cada ambulância municipal + solicitações sem veículo, para o painel ao vivo.
+function liveFleet(all) {
+  const active = all.rows.map(r => r.summary).filter(s => s.stage && s.stage !== "liberado");
+  const municipal = active.filter(s => s.municipal);
+  const vehicles = DATA.fleet.filter(v => v.flowType === "municipal").map(vehicle => {
+    const s = municipal.find(x => x.vehicleId === vehicle.id) || null;
+    return { vehicle, s, status: !s ? "free" : s.alerts.length ? "alert" : "busy" };
+  });
+  const waiting = municipal.filter(s => !s.vehicleId);
+  const order = { alert: 0, busy: 1, free: 2 };
+  vehicles.sort((a, b) => order[a.status] - order[b.status] || a.vehicle.id.localeCompare(b.vehicle.id));
+  return { vehicles, waiting, samu: active.filter(s => !s.municipal) };
+}
+
+function renderLive(all) {
+  const { vehicles, waiting, samu } = liveFleet(all);
+  ELEMENTS.liveBusy.textContent = String(vehicles.filter(v => v.s).length);
+  ELEMENTS.liveFree.textContent = String(vehicles.filter(v => !v.s).length);
+  ELEMENTS.liveAlerts.textContent = String(vehicles.filter(v => v.status === "alert").length + waiting.filter(s => s.alerts.length).length);
+  ELEMENTS.liveAlerts.parentElement.hidden = ELEMENTS.liveAlerts.textContent === "0";
+
+  const card = (code, status, title, line1, line2, badge) => `
+    <li>
+      <button type="button" class="fleet-card ${status}${code && code === state.selectedCode ? " selected" : ""}" ${code ? `data-focus="${escapeHtml(code)}"` : "disabled"}>
+        <span class="fleet-icon">${AMBULANCE_ICON}</span>
+        <span class="fleet-info">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(line1)}</span>
+          ${line2 ? `<small>${escapeHtml(line2)}</small>` : ""}
+        </span>
+        ${badge ? `<span class="fleet-badge">${escapeHtml(badge)}</span>` : ""}
+      </button>
+    </li>`;
+
+  ELEMENTS.fleetLive.innerHTML = [
+    ...waiting.map(s => card(s.code, s.alerts.length ? "alert waiting" : "waiting", "Aguardando veículo",
+      `${unitName(s.originId)} → ${unitName(s.destinationId)}`, s.code, formatMin(s.totalMin))),
+    ...vehicles.map(({ vehicle, s, status }) => s
+      ? card(s.code, status, vehicle.id,
+        s.retentionOpen ? `Retido no destino há ${formatMin(s.retentionMin)}` : s.stageLabel,
+        `${unitName(s.originId)} → ${unitName(s.destinationId)}`, formatMin(s.totalMin))
+      : card(null, "free", vehicle.id, "Disponível", vehicle.type, ""))
+  ].join("");
+  ELEMENTS.samuLive.textContent = samu.length
+    ? `${samu.length} atendimento(s) SAMU 192 no mapa, em cinza: fora da frota municipal.`
+    : "";
 }
 
 // ---------- exportação ----------
@@ -434,7 +529,8 @@ function refreshDashboard() {
   renderRequestTable(rows, all.rows.length);
   renderBottlenecks(rows);
   renderFleet(all);
-  drawMap(rows, all);
+  drawMap(all);
+  renderLive(all);
   const keep = rows.some(r => r.summary.code === state.selectedCode);
   selectRequest(keep ? state.selectedCode : rows[0]?.summary.code ?? null, all.rows);
 }
@@ -460,7 +556,7 @@ function applyLiveChrome(user) {
   notice.classList.add("live");
   notice.replaceChildren(API.el("strong", { text: "Conectado ao servidor MOOV" }),
     " · cada registro entra na trilha de auditoria e aparece para toda a equipe.");
-  document.querySelector(".topbar span").textContent = "Ambiente conectado";
+  document.getElementById("contextLabel").textContent = "Ambiente conectado";
   document.getElementById("clockLabel").textContent = "Horário do servidor";
   ELEMENTS.resetDemo.textContent = "Sair";
   // Exportação da trilha completa é da gestão e da administração.
@@ -473,7 +569,8 @@ async function initApp() {
     "kpiTotal", "kpiTotalDetail", "kpiResponse", "kpiResponseDetail", "kpiTotalTime", "kpiTotalTimeDetail", "kpiRetention",
     "kpiRetentionDetail", "kpiKm", "kpiKmDetail", "kpiComplete", "kpiCompleteDetail", "selectedTransfer", "timeline",
     "timelineCode", "bottleneckList", "retentionList", "requestTable", "requestCount", "fleetTable", "exportAudit",
-    "exportSummary", "printReport", "cfgRetention", "cfgUnassigned"
+    "exportSummary", "printReport", "cfgRetention", "cfgUnassigned", "fleetLive", "samuLive", "liveBusy", "liveFree",
+    "liveAlerts"
   ].forEach(id => { ELEMENTS[id] = document.getElementById(id); });
 
   if (await API.detect()) {
@@ -509,9 +606,24 @@ async function initApp() {
     S.resetDemo();
     refreshDashboard();
   });
+  // Tabela da gestão: seleciona e leva ao mapa, onde fica o detalhe da solicitação.
   ELEMENTS.requestTable.addEventListener("click", event => {
     const button = event.target.closest("[data-select]");
-    if (button) selectRequest(button.dataset.select, computeAll().rows);
+    if (!button) return;
+    const { rows } = computeAll();
+    selectRequest(button.dataset.select, rows);
+    document.getElementById("aoVivo").scrollIntoView({ behavior: "smooth", block: "start" });
+    focusRequest(button.dataset.select, rows);
+  });
+  // Painel ao vivo: seleciona a ambulância e centraliza o mapa nela.
+  ELEMENTS.fleetLive.addEventListener("click", event => {
+    const button = event.target.closest("[data-focus]");
+    if (!button) return;
+    const { rows } = computeAll();
+    selectRequest(button.dataset.focus, rows);
+    focusRequest(button.dataset.focus, rows);
+    // No celular o detalhe fica abaixo da lista.
+    if (window.innerWidth <= 1100) document.querySelector(".detail-card").scrollIntoView({ behavior: "smooth", block: "start" });
   });
   ELEMENTS.exportAudit.addEventListener("click", exportAudit);
   ELEMENTS.exportSummary.addEventListener("click", exportSummary);
