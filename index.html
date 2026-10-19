@@ -5,94 +5,107 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://tile.openstreetmap.org; connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'" />
   <meta name="referrer" content="no-referrer" />
-  <title>MOOV | Painel de Governança da Frota</title>
+  <title>MOOV | Frota de ambulâncias</title>
   <link rel="stylesheet" href="./vendor/leaflet-1.9.4/leaflet.css" />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
-<body>
+<body class="dashboard">
   <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <p class="demo-notice" role="note"><strong>Dados simulados</strong> · Demonstração técnica; não representa ambulâncias, pacientes ou eventos em tempo real.</p>
-      <div class="brand-block">
-        <a class="brand-mark" href="./index.html" aria-label="MOOV">MOOV</a>
-        <p>Governança e rastreabilidade da frota de ambulâncias.</p>
+
+  <header class="appbar no-print">
+    <a class="brand-mark" href="./index.html" aria-label="MOOV">MOOV</a>
+    <nav class="appbar-nav" aria-label="Seções">
+      <a href="#aoVivo">Ao vivo</a>
+      <a href="#gestao">Gestão</a>
+    </nav>
+    <a class="primary-button" href="./pages/regulacao.html">Página da regulação</a>
+  </header>
+  <p class="demo-notice" role="note"><strong>Dados simulados</strong> · Demonstração técnica; não representa ambulâncias, pacientes ou eventos em tempo real.</p>
+
+  <main id="conteudo">
+    <section class="print-only" aria-hidden="true">
+      <p class="print-notice"><strong>DEMONSTRAÇÃO · DADOS FICTÍCIOS.</strong> Não representa ambulâncias, pacientes ou atendimentos reais.</p>
+      <div id="printHeader"></div>
+    </section>
+
+    <!-- Ao vivo: mapa em tela cheia com as ambulâncias municipais em destaque -->
+    <section class="live map-card no-print" id="aoVivo" aria-label="Ao vivo">
+      <div id="map" role="region" aria-label="Mapa esquemático das ambulâncias e solicitações"></div>
+
+      <div class="live-status" aria-live="polite">
+        <span class="chip"><b id="liveBusy">--</b> em atendimento</span>
+        <span class="chip"><b id="liveFree">--</b> disponíveis</span>
+        <span class="chip alert"><b id="liveAlerts">--</b> com alerta</span>
       </div>
 
-      <section class="hero-card">
-        <span>Painel da gestão</span>
-        <h1>Cada solicitação, um código. Cada etapa, um registro.</h1>
-        <p>
-          Cronologia por solicitação, tempos calculados a partir dos registros, retenção de veículos e lastro documental
-          para a gestão do contrato. Não é rastreamento de localização.
-        </p>
-      </section>
-
-
-      <section class="filter-card" aria-label="Filtros">
-        <div class="section-line">
-          <span>Filtros de governança</span>
-          <button id="resetFilters" type="button">Limpar</button>
+      <aside class="fleet-panel" aria-labelledby="fleetLiveTitle">
+        <div class="fleet-panel-head">
+          <h1 id="fleetLiveTitle">Ambulâncias municipais</h1>
+          <p class="muted small">Frota contratada · toque para ver a solicitação</p>
         </div>
+        <ul id="fleetLive" class="fleet-live"></ul>
+        <p id="samuLive" class="samu-live"></p>
+      </aside>
 
-        <label for="flowType">Tipo de fluxo</label>
-        <select id="flowType">
-          <option value="all">Todos</option>
-          <option value="municipal">Frota municipal (contratada)</option>
-          <option value="samu">SAMU 192</option>
-        </select>
+      <article class="detail-card" aria-label="Solicitação selecionada">
+        <div id="selectedTransfer" class="selected-panel" aria-live="polite"></div>
+        <div class="detail-timeline">
+          <div class="section-line">
+            <h2>Cronologia</h2>
+            <b id="timelineCode">Sem seleção</b>
+          </div>
+          <ol id="timeline" class="chronology empty">
+            <li>Selecione uma solicitação.</li>
+          </ol>
+        </div>
+      </article>
 
-        <label for="stageFilter">Etapa atual</label>
-        <select id="stageFilter">
-          <option value="all">Todas</option>
-        </select>
+      <p class="map-caption">
+        Posição <strong>esquemática</strong>, definida pela última etapa registrada (origem, trajeto ou destino). Não é GPS.
+        <span class="legend-inline"><i class="dot municipal"></i> Municipal <i class="dot samu"></i> SAMU 192 <i class="dot alert"></i> Alerta</span>
+      </p>
+    </section>
 
-        <label for="vehicleFilter">Veículo</label>
-        <select id="vehicleFilter">
-          <option value="all">Todos</option>
-        </select>
-
-        <label for="destinationFilter">Destino</label>
-        <select id="destinationFilter">
-          <option value="all">Todos</option>
-        </select>
-      </section>
-
-      <section class="note-card">
-        <span id="clockLabel">Relógio da demonstração</span>
-        <p><strong id="demoClock">--</strong></p>
-        <p id="localCount" class="muted">Nenhum registro local.</p>
-        <button id="resetDemo" type="button" class="ghost-button">Apagar registros locais</button>
-      </section>
-
-      <section class="note-card">
-        <span>Separação de responsabilidade</span>
-        <p>
-          A <strong>frota municipal contratada</strong> compõe os indicadores de frota.
-          O <strong>SAMU 192</strong> aparece identificado, mas fora da frota municipal e das páginas de registro.
-        </p>
-      </section>
-    </aside>
-
-    <main class="main-content" id="conteudo">
-      <section class="print-only" aria-hidden="true">
-        <p class="print-notice"><strong>DEMONSTRAÇÃO · DADOS FICTÍCIOS.</strong> Não representa ambulâncias, pacientes ou atendimentos reais.</p>
-        <div id="printHeader"></div>
-      </section>
-      <header class="topbar">
+    <!-- Gestão: indicadores, tabelas e relatórios do contrato -->
+    <section class="gestao" id="gestao" aria-labelledby="gestaoTitle">
+      <header class="gestao-head">
         <div>
-          <span>Grande Vitória · conjunto fictício</span>
-          <h2>Governança das solicitações de transporte</h2>
+          <span class="eyebrow" id="contextLabel">Grande Vitória · conjunto fictício</span>
+          <h2 id="gestaoTitle">Gestão do contrato</h2>
         </div>
-
         <div class="topbar-actions">
           <button id="exportAudit" type="button" class="ghost-button">Exportar trilha de auditoria (CSV)</button>
           <button id="exportSummary" type="button" class="ghost-button">Exportar resumo por solicitação (CSV)</button>
           <button id="printReport" type="button" class="ghost-button">Relatório para impressão / PDF</button>
-          <a class="primary-button" href="./pages/regulacao.html">Página da regulação</a>
         </div>
       </header>
+
+      <section class="filter-bar no-print" aria-label="Filtros">
+        <label>Tipo de fluxo
+          <select id="flowType">
+            <option value="all">Todos</option>
+            <option value="municipal">Frota municipal (contratada)</option>
+            <option value="samu">SAMU 192</option>
+          </select>
+        </label>
+        <label>Etapa atual
+          <select id="stageFilter">
+            <option value="all">Todas</option>
+          </select>
+        </label>
+        <label>Veículo
+          <select id="vehicleFilter">
+            <option value="all">Todos</option>
+          </select>
+        </label>
+        <label>Destino
+          <select id="destinationFilter">
+            <option value="all">Todos</option>
+          </select>
+        </label>
+        <button id="resetFilters" type="button" class="ghost-button">Limpar filtros</button>
+      </section>
 
       <section class="metrics" aria-label="Indicadores da frota municipal no recorte filtrado">
         <article>
@@ -127,16 +140,6 @@
         </article>
       </section>
 
-      <section class="map-card no-print">
-        <div id="map" role="region" aria-label="Mapa esquemático de origens e destinos das solicitações"></div>
-        <p class="map-caption">
-          Posição <strong>esquemática</strong>, definida pela última etapa registrada (origem, trajeto ou destino). Não é GPS.
-          <span class="legend-inline"><i class="dot municipal"></i> Municipal <i class="dot samu"></i> SAMU 192 <i class="dot alert"></i> Alerta</span>
-        </p>
-      </section>
-
-      <section class="panel selected-panel no-print" id="selectedTransfer" aria-live="polite"></section>
-
       <section class="panel">
         <div class="section-line">
           <div>
@@ -167,19 +170,6 @@
       </section>
 
       <section class="content-grid">
-        <article class="panel no-print">
-          <div class="section-line">
-            <div>
-              <span>Cronologia</span>
-              <h3>Registros da solicitação</h3>
-            </div>
-            <b id="timelineCode">Sem seleção</b>
-          </div>
-          <ol id="timeline" class="chronology empty">
-            <li>Selecione uma solicitação.</li>
-          </ol>
-        </article>
-
         <article class="panel">
           <div class="section-line">
             <div>
@@ -191,36 +181,52 @@
           <h4 class="subhead">Retenção de veículos por destino</h4>
           <div id="retentionList" class="bottlenecks"></div>
         </article>
+
+        <article class="panel">
+          <div class="section-line">
+            <div>
+              <span>Frota municipal contratada</span>
+              <h3>Uso do recurso por veículo</h3>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="fleetTable">
+              <caption class="sr-only">Indicadores por veículo da frota municipal, calculados sobre todas as solicitações do conjunto.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Veículo</th>
+                  <th scope="col">Tipo</th>
+                  <th scope="col">Solicitações</th>
+                  <th scope="col">Em serviço</th>
+                  <th scope="col">Retido no destino</th>
+                  <th scope="col">Km registrados</th>
+                  <th scope="col">Situação</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="muted small">
+            Calculado sobre todas as solicitações do conjunto, independentemente do recorte. Não converte minutos ou km em
+            valores financeiros, pois isso depende das regras do contrato.
+          </p>
+        </article>
       </section>
 
-      <section class="panel">
-        <div class="section-line">
-          <div>
-            <span>Frota municipal contratada</span>
-            <h3>Uso do recurso por veículo</h3>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table" id="fleetTable">
-            <caption class="sr-only">Indicadores por veículo da frota municipal, calculados sobre todas as solicitações do conjunto.</caption>
-            <thead>
-              <tr>
-                <th scope="col">Veículo</th>
-                <th scope="col">Tipo</th>
-                <th scope="col">Solicitações</th>
-                <th scope="col">Em serviço</th>
-                <th scope="col">Retido no destino</th>
-                <th scope="col">Km registrados</th>
-                <th scope="col">Situação</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <p class="muted small">
-          Calculado sobre todas as solicitações do conjunto, independentemente do recorte. Indicadores auxiliares para identificar gargalos de uso do recurso; não convertem minutos ou km em valores
-          financeiros, pois isso depende das regras do contrato.
-        </p>
+      <section class="info-grid no-print">
+        <article class="note-card">
+          <span id="clockLabel">Relógio da demonstração</span>
+          <p><strong id="demoClock">--</strong></p>
+          <p id="localCount" class="muted">Nenhum registro local.</p>
+          <button id="resetDemo" type="button" class="ghost-button">Apagar registros locais</button>
+        </article>
+        <article class="note-card">
+          <span>Separação de responsabilidade</span>
+          <p>
+            A <strong>frota municipal contratada</strong> compõe os indicadores de frota.
+            O <strong>SAMU 192</strong> aparece identificado, mas fora da frota municipal e das páginas de registro.
+          </p>
+        </article>
       </section>
 
       <section class="panel architecture">
@@ -249,8 +255,8 @@
           </article>
         </div>
       </section>
-    </main>
-  </div>
+    </section>
+  </main>
 
   <script src="./vendor/leaflet-1.9.4/leaflet.js"></script>
   <script src="./js/data.js"></script>
