@@ -54,7 +54,7 @@ Sem o servidor (GitHub Pages, `python3 -m http.server`), tudo segue como **demon
 python3 -m http.server 8080   # http://localhost:8080
 ```
 
-Sem build. Leaflet 1.9.4 é versionado em `vendor/`; apenas os tiles do mapa (OpenStreetMap, sem chave de API) vêm da internet. Sem rede, o painel funciona sem o fundo do mapa.
+Sem build. Leaflet 1.9.4 é versionado em `vendor/`. Vêm da internet apenas os tiles do mapa (OpenStreetMap, sem chave de API) e os **trajetos pelas ruas** entre as unidades (roteador OSRM, `js/routes.js`): o pedido leva só as coordenadas da origem e do destino, nunca código, veículo ou dado de paciente, e cada trajeto fica guardado no navegador. Sem rede, o painel funciona sem o fundo do mapa e sem linhas de rota (nunca desenha reta entre as unidades).
 
 ## Testes
 

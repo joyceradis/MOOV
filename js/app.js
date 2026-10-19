@@ -1,8 +1,9 @@
-// Painel da gestão: calcula indicadores e desenha mapa esquemático.
+// Painel da gestão: calcula indicadores e desenha o mapa ao vivo (posição esquemática, trajeto pelas ruas).
 // Conectado ao servidor (MOOV_API), lê /api/dashboard após login; senão, conjunto fictício + registros locais.
 const M = window.MOOV_METRICS;
 const S = window.MOOV_STORE;
 const API = window.MOOV_API;
+const R = window.MOOV_ROUTES;
 
 const ELEMENTS = {};
 const state = { selectedCode: null, map: null, layers: [], markers: new Map() };
@@ -286,7 +287,7 @@ function initMap() {
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     referrerPolicy: "strict-origin-when-cross-origin",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a>'
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">colaboradores do OpenStreetMap</a> · rotas <a href="https://project-osrm.org/">OSRM</a>'
   }).addTo(state.map);
 
   state.map.fitBounds(L.latLngBounds(DATA.units.map(u => u.coords)), mapPadding());
@@ -313,20 +314,34 @@ function vehicleHtml(s, selected) {
     </div>`;
 }
 
-// Ponto esquemático: origem até o embarque, meio do trajeto após a saída, destino após a chegada.
-function schematicPoint(summary) {
+// Progresso esquemático no trajeto: origem até o embarque, metade após a saída, destino após a chegada.
+function progressOf(summary) {
+  const index = M.STAGE_INDEX[summary.stage];
+  if (index >= M.STAGE_INDEX.chegada_destino) return 1;
+  if (index >= M.STAGE_INDEX.saida_origem) return 0.5;
+  return 0;
+}
+
+// Posição do veículo e trajeto pelas ruas dividido em percorrido/restante.
+// Sem a rota pelas ruas, não há linha (nada de reta sobre o mar) e o veículo fica na unidade da última etapa.
+function placement(summary) {
   const origin = unitCoords(summary.originId);
   const destination = unitCoords(summary.destinationId);
-  if (!origin || !destination || !summary.vehicleId || summary.stage === "liberado") {
-    return null;
+  if (!origin || !destination) return null;
+  const route = R.get(origin, destination);
+  const progress = progressOf(summary);
+  const hasVehicle = Boolean(summary.vehicleId);
+  if (!route) {
+    return { done: [], rest: [], point: hasVehicle ? (progress === 1 ? destination : origin) : null };
   }
-  const index = M.STAGE_INDEX[summary.stage];
-  if (index >= M.STAGE_INDEX.chegada_destino) return destination;
-  if (index >= M.STAGE_INDEX.saida_origem) return [(origin[0] + destination[0]) / 2, (origin[1] + destination[1]) / 2];
-  return origin;
+  if (!hasVehicle || progress === 0) return { done: [], rest: route, point: hasVehicle ? origin : null };
+  if (progress === 1) return { done: route, rest: [], point: destination };
+  const { point, index } = R.along(route, progress);
+  return { done: [...route.slice(0, index), point], rest: [point, ...route.slice(index)], point };
 }
 
 function addLine(coords, options, onClick) {
+  if (coords.length < 2) return null;
   const line = L.polyline(coords, options).addTo(state.map);
   if (onClick) line.on("click", onClick);
   state.layers.push(line);
@@ -344,30 +359,25 @@ function drawMap(all) {
   state.markers = new Map();
 
   all.rows.forEach(({ summary: s }) => {
-    const origin = unitCoords(s.originId);
-    const destination = unitCoords(s.destinationId);
-    if (!origin || !destination || s.stage === "liberado") return;
+    if (s.stage === "liberado") return;
+    const place = placement(s);
+    if (!place) return;
     const select = () => selectRequest(s.code, all.rows);
-    const point = schematicPoint(s);
+    const samu = s.flowType === "samu";
 
-    if (s.flowType === "samu") {
-      addLine([origin, destination], { color: ROUTE.samu, weight: 3, opacity: .7, dashArray: "4 8" }, select);
+    if (samu) {
+      addLine([...place.done, ...place.rest], { color: ROUTE.samu, weight: 3, opacity: .7, dashArray: "4 8" }, select);
     } else {
       const color = s.alerts.length ? ROUTE.alert : ROUTE.municipal;
-      const done = point ? [origin, point] : [];
-      const rest = point ? [point, destination] : [origin, destination];
-      if (done.length) {
-        addLine(done, { color: ROUTE.casing, weight: 10, opacity: .95 });
-        addLine(done, { color, weight: 6, opacity: 1 }, select);
-      }
-      addLine(rest, { color: ROUTE.casing, weight: 8, opacity: .8 });
-      addLine(rest, { color, weight: 4, opacity: point ? .55 : .4, dashArray: "1 9", lineCap: "round" }, select);
+      addLine(place.done, { color: ROUTE.casing, weight: 10, opacity: .95 });
+      addLine(place.done, { color, weight: 6, opacity: 1 }, select);
+      addLine(place.rest, { color: ROUTE.casing, weight: 8, opacity: .8 });
+      addLine(place.rest, { color, weight: 4, opacity: place.point ? .6 : .4, dashArray: "1 9", lineCap: "round" }, select);
     }
 
-    if (point) {
-      const samu = s.flowType === "samu";
+    if (place.point && s.vehicleId) {
       const size = samu ? 30 : 46;
-      const marker = L.marker(point, {
+      const marker = L.marker(place.point, {
         icon: L.divIcon({ className: "", html: vehicleHtml(s, s.code === state.selectedCode), iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
         title: `${s.vehicleId} · ${s.code} · ${s.stageLabel} (posição esquemática)`,
         keyboard: true,
@@ -376,6 +386,20 @@ function drawMap(all) {
       marker.on("click", select);
       state.layers.push(marker);
       state.markers.set(s.code, marker);
+    }
+  });
+}
+
+// Pede as rotas pelas ruas que faltam e redesenha quando chegam.
+function loadRoutes(all) {
+  if (!state.map) return;
+  const pairs = all.rows
+    .filter(r => r.summary.stage !== "liberado")
+    .map(r => [unitCoords(r.summary.originId), unitCoords(r.summary.destinationId)]);
+  R.ensure(pairs).then(added => {
+    if (added) {
+      drawMap(computeAll());
+      markSelectedMarker(state.selectedCode);
     }
   });
 }
@@ -530,6 +554,7 @@ function refreshDashboard() {
   renderBottlenecks(rows);
   renderFleet(all);
   drawMap(all);
+  loadRoutes(all);
   renderLive(all);
   const keep = rows.some(r => r.summary.code === state.selectedCode);
   selectRequest(keep ? state.selectedCode : rows[0]?.summary.code ?? null, all.rows);
