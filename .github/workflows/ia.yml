@@ -1,11 +1,54 @@
 name: Integracao IA - MOOV
+
 on: [push]
+
 jobs:
-  analise_da_ia:
+  analise_completa:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Rodar a IA
+      - name: Baixar o código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Preparar ambiente
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Instalar IA
+        run: pip install anthropic
+
+      - name: Gerar Laudo com Claude
         env:
           MINHA_CHAVE_IA: ${{ secrets.CHAVE_DA_IA }}
-        run: echo "Robô da IA ativado e seguro na nuvem!"
+        run: |
+          python -c "
+          import os, subprocess
+          from anthropic import Anthropic
+
+          # Pega as últimas alterações feitas no código
+          diff = subprocess.getoutput('git diff HEAD~1 HEAD || echo \"Sem mudanças\"')
+
+          client = Anthropic(api_key=os.environ.get('MINHA_CHAVE_IA'))
+          mensagem = f'''Você é um especialista em tecnologia ajudando uma médica criadora de um projeto chamado MOOV. 
+          Analise essas alterações no código:\n\n{diff}\n\n
+          Faça um relatório amigável com:
+          1. 📝 **Resumo:** O que foi alterado, em linguagem simples.
+          2. 🚨 **Auditoria:** Se tem algum bug ou erro crítico.
+          3. 💡 **Dicas:** Uma sugestão de melhoria.'''
+
+          try:
+              resposta = client.messages.create(
+                  model='claude-3-5-sonnet-20241022',
+                  max_tokens=1000,
+                  messages=[{'role': 'user', 'content': mensagem}]
+              )
+              texto = resposta.content[0].text
+          except Exception as e:
+              texto = f'Erro ao conectar: {e}'
+
+          # Salva o relatório no painel do GitHub
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
+              f.write(f'## 🤖 Laudo do Claude\n\n{texto}\n')
+          "
